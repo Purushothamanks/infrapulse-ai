@@ -32,8 +32,14 @@ export default function Home() {
   const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
 
-  const publicUrl = 'https://high-tion-best-futures.trycloudflare.com';
+  const [publicUrl, setPublicUrl] = useState<string>('https://exemption-blond-acute-blast.trycloudflare.com');
   const localWifiUrl = 'http://10.121.226.91:3000';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.origin) {
+      setPublicUrl(window.location.origin);
+    }
+  }, []);
 
   // Load hazards from localStorage on mount so changes between admin & citizen sync seamlessly
   useEffect(() => {

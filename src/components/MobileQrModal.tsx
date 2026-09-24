@@ -52,7 +52,11 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
         <div className="my-5 flex flex-col items-center justify-center space-y-3">
           <div className="p-4 bg-white rounded-2xl shadow-xl border-4 border-emerald-500/30">
             <img
-              src="/mobile-qr.png"
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(publicUrl)}`}
+              onError={(e) => {
+                // Fallback to local image if offline
+                (e.target as HTMLImageElement).src = '/mobile-qr.png';
+              }}
               alt="Scan to open on mobile"
               className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
             />
