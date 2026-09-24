@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { X, Smartphone, ExternalLink, Wifi, Copy, Check } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Smartphone, ExternalLink, Wifi, Copy, Check, Globe } from 'lucide-react';
 
 interface MobileQrModalProps {
   isOpen: boolean;
@@ -16,12 +16,15 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
   publicUrl,
   localWifiUrl
 }) => {
-  const [copied, setCopied] = React.useState(false);
+  const [activeMode, setActiveMode] = useState<'local' | 'cloud'>('local');
+  const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
+  const currentUrl = activeMode === 'local' ? localWifiUrl : publicUrl;
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(publicUrl);
+    navigator.clipboard.writeText(currentUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -48,34 +51,68 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
           </button>
         </div>
 
+        {/* Mode Selector: Local Wi-Fi vs Cloudflare */}
+        <div className="mt-4 flex rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveMode('local')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeMode === 'local'
+                ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Wifi className="w-3.5 h-3.5" />
+            <span>Local Wi-Fi Network</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveMode('cloud')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeMode === 'cloud'
+                ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Cloudflare Tunnel</span>
+          </button>
+        </div>
+
         {/* QR Code Container */}
-        <div className="my-5 flex flex-col items-center justify-center space-y-3">
+        <div className="my-4 flex flex-col items-center justify-center space-y-2">
           <div className="p-4 bg-white rounded-2xl shadow-xl border-4 border-emerald-500/30">
             <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(publicUrl)}`}
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(currentUrl)}`}
               onError={(e) => {
-                // Fallback to local image if offline
                 (e.target as HTMLImageElement).src = '/mobile-qr.png';
               }}
               alt="Scan to open on mobile"
-              className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
+              className="w-44 h-44 sm:w-52 sm:h-52 object-contain"
             />
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 text-center font-mono">
-            Point your mobile camera at this QR code to open
+            {activeMode === 'local'
+              ? 'Connect mobile to same Wi-Fi and scan'
+              : 'Scan to access via secure Cloudflare tunnel'}
           </p>
         </div>
 
-        {/* Public Cloudflare HTTPS Link */}
-        <div className="space-y-2">
-          <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-            Public Cloudflare HTTPS URL:
-          </label>
+        {/* Selected URL Input & Copy */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
+              {activeMode === 'local' ? 'Local Wi-Fi URL (--host):' : 'Cloudflare Tunnel URL:'}
+            </label>
+            <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-bold">
+              {activeMode === 'local' ? 'PORT 3000' : 'HTTPS'}
+            </span>
+          </div>
           <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs">
             <input
               type="text"
               readOnly
-              value={publicUrl}
+              value={currentUrl}
               className="bg-transparent flex-1 font-mono text-emerald-700 dark:text-emerald-400 outline-none truncate select-all"
             />
             <button
@@ -86,7 +123,7 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
             <a
-              href={publicUrl}
+              href={currentUrl}
               target="_blank"
               rel="noreferrer"
               className="p-1 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
@@ -96,20 +133,13 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
           </div>
         </div>
 
-        {/* Local Wi-Fi Subnet Link */}
+        {/* Helper Note */}
         <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 font-mono">
           <span className="flex items-center gap-1.5">
             <Wifi className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-            Same Wi-Fi Network:
+            Local Network Host:
           </span>
-          <a
-            href={localWifiUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-cyan-600 dark:text-cyan-400 hover:underline"
-          >
-            {localWifiUrl}
-          </a>
+          <span className="font-bold text-slate-700 dark:text-slate-300">0.0.0.0:3000</span>
         </div>
       </div>
     </div>

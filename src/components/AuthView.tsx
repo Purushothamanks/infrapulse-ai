@@ -119,9 +119,9 @@ export const AuthView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-colors relative selection:bg-emerald-500 selection:text-slate-950">
-      {/* Top Floating Theme Toggle */}
-      <div className="absolute top-4 right-4 z-20">
-        <ThemeToggle showLabel />
+      {/* Top Floating Theme Toggle - Symbol icon only */}
+      <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
+        <ThemeToggle />
       </div>
 
       <div className="w-full max-w-md space-y-5 my-auto">
