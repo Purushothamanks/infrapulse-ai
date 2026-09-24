@@ -762,30 +762,32 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
 
       {/* USER PAGE FIXED BOTTOM NAVIGATION DOCK:
           Left: Raise
-          Center: Track (Prominent & highlighted)
+          Center: Track (Prominent & mathematically centered)
           Right: Help & Support (TN Govt details) */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-2 transition-colors">
-        <div className="max-w-md mx-auto flex items-center justify-around relative">
+        <div className="max-w-md mx-auto grid grid-cols-3 items-center relative">
           {/* Left: Raise Grievance */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('raise')}
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all cursor-pointer ${
-              activeTab === 'raise'
-                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <Camera className="w-5 h-5" />
-            <span className="text-[10px]">Raise</span>
-          </button>
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={() => setActiveTab('raise')}
+              className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                activeTab === 'raise'
+                  ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Camera className="w-5 h-5" />
+              <span className="text-[10px]">Raise</span>
+            </button>
+          </div>
 
-          {/* CENTER: TRACK OPTION (Prominent Center Button) */}
-          <div className="relative -top-3">
+          {/* CENTER: TRACK OPTION (Prominent Center Button - Dead Center) */}
+          <div className="flex justify-center relative -top-3">
             <button
               type="button"
               onClick={() => setActiveTab('history')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs shadow-lg transition-transform active:scale-95 cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs shadow-lg transition-transform active:scale-95 cursor-pointer whitespace-nowrap ${
                 activeTab === 'history'
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-emerald-500/40 ring-4 ring-emerald-500/20'
                   : 'bg-slate-900 text-white dark:bg-emerald-500/20 dark:text-emerald-300 border border-slate-700 dark:border-emerald-500/40'
@@ -801,15 +803,17 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           </div>
 
           {/* Right: Help & Support (TN Govt Helpline) */}
-          <button
-            type="button"
-            onClick={() => setIsHelpOpen(true)}
-            className="flex flex-col items-center gap-1 p-2 rounded-xl text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all cursor-pointer"
-            title="Tamil Nadu Government Official Help & Support"
-          >
-            <LifeBuoy className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-[10px] font-semibold">Help & Support</span>
-          </button>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setIsHelpOpen(true)}
+              className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all cursor-pointer"
+              title="Tamil Nadu Government Official Help & Support"
+            >
+              <LifeBuoy className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-[10px] font-semibold whitespace-nowrap">Help & Support</span>
+            </button>
+          </div>
         </div>
       </div>
 
