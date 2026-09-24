@@ -30,7 +30,7 @@ export default function Home() {
   const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
 
-  const [publicUrl, setPublicUrl] = useState<string>('https://3-6-172-250.sslip.io');
+  const [publicUrl, setPublicUrl] = useState<string>('https://3.6.172.250.nip.io');
   const localWifiUrl = 'http://10.121.226.91:3000';
 
   useEffect(() => {
