@@ -265,31 +265,24 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col text-slate-900 dark:text-slate-100 transition-colors pb-24 lg:pb-8">
       {/* Citizen Portal Header with Official Branding Logo */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md px-4 sm:px-8 py-2.5 transition-colors">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-          {/* Replaced with logo image as requested */}
-          <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2.5 transition-colors">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+          {/* Brand Logo - Same as Admin Navbar */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img
               src="/logo.jpeg"
               alt="InfraPulse AI Logo"
-              className="h-10 sm:h-12 w-auto object-contain rounded-xl shadow-xs"
+              className="h-9 sm:h-10 w-auto object-contain rounded-xl shadow-xs"
             />
+            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+              CITIZEN DESK
+            </span>
           </div>
 
-          {/* Header Action Buttons: Light/Dark Mode + TN Govt Help + Profile + Logout */}
+          {/* Header Action Buttons: Light/Dark Mode + Profile + Logout (TN Govt Help removed from top) */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Theme Toggle Button */}
             <ThemeToggle />
-
-            {/* TN Govt Help Button in Header */}
-            <button
-              onClick={() => setIsHelpOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-semibold transition-all cursor-pointer"
-              title="Tamil Nadu Government Citizen Helpline"
-            >
-              <LifeBuoy className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">TN Govt Help</span>
-            </button>
 
             {/* User Profile Tag */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">

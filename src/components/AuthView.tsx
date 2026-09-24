@@ -14,7 +14,6 @@ import {
   KeyRound,
   CheckCircle2,
   AlertCircle,
-  Activity,
   Fingerprint
 } from 'lucide-react';
 
@@ -128,12 +127,13 @@ export const AuthView: React.FC = () => {
       <div className="w-full max-w-md space-y-5 my-auto">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-600 shadow-xl shadow-emerald-500/20 text-slate-950 font-black mb-2">
-            <Activity className="w-8 h-8 text-white animate-pulse" />
+          <div className="flex justify-center mb-2">
+            <img
+              src="/logo.jpeg"
+              alt="InfraPulse AI Logo"
+              className="h-14 sm:h-16 w-auto object-contain rounded-2xl shadow-md"
+            />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            InfraPulse<span className="text-emerald-500 dark:text-emerald-400 font-mono">.AI</span>
-          </h1>
           <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs mx-auto">
             Autonomous Urban Infrastructure Triage & Sustainable Smart City Portal
           </p>
