@@ -32,7 +32,7 @@ export default function Home() {
   const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
 
-  const [publicUrl, setPublicUrl] = useState<string>('https://exemption-blond-acute-blast.trycloudflare.com');
+  const [publicUrl, setPublicUrl] = useState<string>('http://3.6.172.250');
   const localWifiUrl = 'http://10.121.226.91:3000';
 
   useEffect(() => {
