@@ -8,7 +8,6 @@ import { Navbar } from '@/components/Navbar';
 import { RealWorldCityMap } from '@/components/RealWorldCityMap';
 import { HazardQueue } from '@/components/HazardQueue';
 import { HazardInspectorModal } from '@/components/HazardInspectorModal';
-import { CitizenUploadDrawer } from '@/components/CitizenUploadDrawer';
 import { BottomNav } from '@/components/BottomNav';
 import { MobileQrModal } from '@/components/MobileQrModal';
 import { FullPageImpactView } from '@/components/FullPageImpactView';
@@ -27,12 +26,11 @@ export default function Home() {
 
   const [hazards, setHazards] = useState<HazardReport[]>(initialHazards);
   const [selectedHazard, setSelectedHazard] = useState<HazardReport | null>(null);
+  const [inspectingHazard, setInspectingHazard] = useState<HazardReport | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
-  const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [isMobileQrOpen, setIsMobileQrOpen] = useState<boolean>(false);
   const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
-  const [reportCoords, setReportCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
 
   const publicUrl = 'https://high-tion-best-futures.trycloudflare.com';
   const localWifiUrl = 'http://10.121.226.91:3000';
@@ -126,7 +124,6 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-20 lg:pb-6 transition-colors">
       {/* Navigation Header with Admin Profile & Logout */}
       <Navbar
-        onOpenReport={() => setIsUploadOpen(true)}
         onOpenMobileQr={() => setIsMobileQrOpen(true)}
         onOpenImpact={() => setIsImpactOpen(true)}
         activeFilter={activeFilter}
@@ -214,10 +211,6 @@ export default function Home() {
               hazards={filteredHazards}
               selectedHazard={selectedHazard}
               onSelectHazard={(h) => setSelectedHazard(h)}
-              onDropPinReport={(lat, lng) => {
-                setReportCoords({ lat, lng });
-                setIsUploadOpen(true);
-              }}
             />
           </div>
 
@@ -230,9 +223,10 @@ export default function Home() {
             <HazardQueue
               hazards={filteredHazards}
               selectedHazard={selectedHazard}
-              onSelectHazard={(h) => setSelectedHazard(h)}
+              onSelectHazard={(h) => setInspectingHazard(h)}
               onNavigateLocation={(hazard) => {
                 setSelectedHazard(hazard);
+                setInspectingHazard(null); // Never open the whole issue modal on GPS navigate click!
                 setMobileTab('map');
               }}
               onUpdateHazard={handleUpdateHazard}
@@ -251,26 +245,18 @@ export default function Home() {
             setMobileTab(tab);
           }
         }}
-        onOpenReport={() => setIsUploadOpen(true)}
         onOpenMobileQr={() => setIsMobileQrOpen(true)}
         queueCount={filteredHazards.length}
       />
 
       {/* Popups, Drawers & Modals */}
       <HazardInspectorModal
-        hazard={selectedHazard}
-        onClose={() => setSelectedHazard(null)}
-        onUpdateHazard={handleUpdateHazard}
-      />
-
-      <CitizenUploadDrawer
-        isOpen={isUploadOpen}
-        onClose={() => {
-          setIsUploadOpen(false);
-          setReportCoords(undefined);
+        hazard={inspectingHazard}
+        onClose={() => setInspectingHazard(null)}
+        onUpdateHazard={(updated) => {
+          handleUpdateHazard(updated);
+          setInspectingHazard(updated);
         }}
-        onAddHazard={handleAddHazard}
-        initialCoords={reportCoords}
       />
 
       <MobileQrModal

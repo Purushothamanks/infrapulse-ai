@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { HazardReport, HazardType, getHazardProgress } from '@/types/hazard';
 import { LocationPickerMap } from './LocationPickerMap';
@@ -15,16 +15,16 @@ import {
   LogOut,
   ShieldAlert,
   Loader2,
-  FileText,
-  Activity,
   Droplet,
   Truck,
   Zap,
   Sun,
   LifeBuoy,
   Trash2,
-  PhoneCall,
-  Sparkles
+  Sparkles,
+  Upload,
+  Video,
+  X
 } from 'lucide-react';
 
 interface CitizenPortalProps {
@@ -111,6 +111,12 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   const [ward, setWard] = useState<string>('Ward 4 - East Tech Corridor');
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 12.9716, lng: 77.5946 });
 
+  // Live Camera State
+  const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
+
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisProgress, setAnalysisProgress] = useState<string>('');
   const [successSubmitted, setSuccessSubmitted] = useState<boolean>(false);
@@ -136,6 +142,50 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Live Web Camera Controls
+  const handleStartCamera = async () => {
+    setIsCameraActive(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
+    } catch (err) {
+      console.warn('WebRTC camera unavailable or blocked, triggering device native camera:', err);
+      setIsCameraActive(false);
+      if (nativeCameraInputRef.current) {
+        nativeCameraInputRef.current.click();
+      }
+    }
+  };
+
+  const handleCaptureFrame = () => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = videoRef.current.videoWidth || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      setSelectedImage(dataUrl);
+      setSelectedSampleId('custom-upload');
+    }
+    handleStopCamera();
+  };
+
+  const handleStopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -191,7 +241,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           confettiFn({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
         } catch (_) {}
 
-        // Switch to history/track view after 1.5s
+        // Switch to track view after 1.5s
         setTimeout(() => {
           setSuccessSubmitted(false);
           setActiveTab('history');
@@ -214,26 +264,16 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col text-slate-900 dark:text-slate-100 transition-colors pb-24 lg:pb-8">
-      {/* Citizen Portal Header */}
-      <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md px-4 sm:px-8 py-3 transition-colors">
+      {/* Citizen Portal Header with Official Branding Logo */}
+      <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md px-4 sm:px-8 py-2.5 transition-colors">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+          {/* Replaced with logo image as requested */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 text-slate-950 font-black shadow-lg shadow-cyan-500/20 shrink-0">
-              <Activity className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-                  InfraPulse <span className="text-cyan-600 dark:text-cyan-400 font-mono text-xs sm:text-sm">CITIZEN DESK</span>
-                </h1>
-                <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/30">
-                  CIVILIAN ACCESS
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-                Report Public Hazards & Track Municipal Action SLA
-              </p>
-            </div>
+            <img
+              src="/logo.jpeg"
+              alt="InfraPulse AI Logo"
+              className="h-10 sm:h-12 w-auto object-contain rounded-xl shadow-xs"
+            />
           </div>
 
           {/* Header Action Buttons: Light/Dark Mode + TN Govt Help + Profile + Logout */}
@@ -277,100 +317,174 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
         </div>
       </header>
 
+      {/* Hidden Native Camera Input for immediate mobile shutter trigger */}
+      <input
+        ref={nativeCameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleCustomFileUpload}
+        className="hidden"
+      />
+
       {/* Main Content Area */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Navigation Tabs (Raise Grievance vs Track Grievances) */}
-        <div className="flex rounded-2xl bg-white dark:bg-slate-900 p-1.5 border border-slate-200 dark:border-slate-800 shadow-md max-w-md mx-auto transition-colors">
-          <button
-            onClick={() => setActiveTab('raise')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-              activeTab === 'raise'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <Camera className="w-4 h-4" />
-            <span>Raise New Grievance</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-              activeTab === 'history'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span>Track Status ({citizenComplaints.length})</span>
-          </button>
-        </div>
-
-        {/* TAB 1: RAISE COMPLAINT FORM */}
+        {/* VIEW 1: RAISE COMPLAINT FORM (Track option removed from top, available strictly at bottom) */}
         {activeTab === 'raise' && (
-          <div className="max-w-3xl mx-auto rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl p-4 sm:p-8 space-y-6 backdrop-blur-md transition-colors">
-            {successSubmitted && (
-              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/50 text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-3 animate-in fade-in">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <div>
-                  <span className="font-bold block">Grievance Successfully Lodged!</span>
-                  <span className="text-xs text-emerald-700 dark:text-emerald-400">
-                    AI verification complete. Your report has been dispatched to the Municipal Admin Command Center.
-                  </span>
-                </div>
-              </div>
-            )}
+          <div className="space-y-4">
+            {/* Context Header */}
+            <div className="flex items-center justify-between max-w-3xl mx-auto">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Camera className="w-5 h-5 text-emerald-500" />
+                <span>Lodge Public Infrastructure Grievance</span>
+              </h2>
+              <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-full border border-emerald-300 dark:border-emerald-500/30 font-semibold">
+                AI COMPUTER VISION TRIAGE
+              </span>
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Step 1: Category Selection */}
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-3">
-                  Step 1: Select Infrastructure Problem Category
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {CATEGORIES.map((cat) => {
-                    const isSelected = selectedType === cat.type;
-                    const Icon = cat.icon;
-                    return (
-                      <button
-                        type="button"
-                        key={cat.type}
-                        onClick={() => handleCategorySelect(cat)}
-                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col items-start gap-2 ${
-                          isSelected
-                            ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-500 text-emerald-950 dark:text-white shadow-md shadow-emerald-500/10'
-                            : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
-                        }`}
-                      >
-                        <div
-                          className={`p-2 rounded-xl ${
+            <div className="max-w-3xl mx-auto rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-xl p-4 sm:p-8 space-y-6 backdrop-blur-md transition-colors">
+              {successSubmitted && (
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/50 text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-3 animate-in fade-in">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div>
+                    <span className="font-bold block">Grievance Successfully Lodged!</span>
+                    <span className="text-xs text-emerald-700 dark:text-emerald-400">
+                      AI verification complete. Your report has been dispatched to the Municipal Admin Command Center.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Step 1: Category Selection */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-3">
+                    Step 1: Select Infrastructure Problem Category
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    {CATEGORIES.map((cat) => {
+                      const isSelected = selectedType === cat.type;
+                      const Icon = cat.icon;
+                      return (
+                        <button
+                          type="button"
+                          key={cat.type}
+                          onClick={() => handleCategorySelect(cat)}
+                          className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col items-start gap-2 ${
                             isSelected
-                              ? 'bg-emerald-500 text-slate-950'
-                              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                              ? 'bg-emerald-50 dark:bg-emerald-500/20 border-emerald-500 text-emerald-950 dark:text-white shadow-md shadow-emerald-500/10'
+                              : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
                           }`}
                         >
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <span className="text-xs font-semibold">{cat.label}</span>
-                      </button>
-                    );
-                  })}
+                          <div
+                            className={`p-2 rounded-xl ${
+                              isSelected
+                                ? 'bg-emerald-500 text-slate-950'
+                                : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                            }`}
+                          >
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <span className="text-xs font-semibold">{cat.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              {/* Step 2: Photo Upload */}
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-3">
-                  Step 2: Upload Hazard Photo (Or Choose from Category Field Samples)
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 rounded-2xl bg-slate-50 dark:bg-slate-950 cursor-pointer transition-colors group">
-                    <Camera className="w-8 h-8 text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 mb-2 transition-colors" />
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Take Photo or Upload</span>
-                    <span className="text-[10px] text-slate-500 mt-1">PNG, JPG, WebP images</span>
-                    <input type="file" accept="image/*" onChange={handleCustomFileUpload} className="hidden" />
+                {/* Step 2: Photo Upload + QUICK CAMERA CAPTURE OPTION */}
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-3">
+                    Step 2: Capture Photo from Camera or Upload File
                   </label>
 
-                  {/* Image Preview */}
+                  {/* Dual Action Buttons: Quick Camera Capture vs Upload File */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                    {/* CAMERA OPTION: Quick Photo Capture */}
+                    <button
+                      type="button"
+                      onClick={handleStartCamera}
+                      className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-emerald-500/50 bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all cursor-pointer group shadow-xs text-left"
+                    >
+                      <div className="p-2.5 rounded-xl bg-emerald-500 text-slate-950 shadow-md group-hover:scale-105 transition-transform">
+                        <Camera className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white block">
+                          Quick Photo Capture
+                        </span>
+                        <span className="text-[11px] text-emerald-800 dark:text-emerald-300 font-medium block">
+                          Open live camera & snap picture
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* UPLOAD OPTION: From Storage */}
+                    <label className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 hover:border-emerald-500 cursor-pointer transition-all group shadow-xs">
+                      <div className="p-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white block">
+                          Upload File / Gallery
+                        </span>
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                          Select PNG, JPG, WebP image
+                        </span>
+                      </div>
+                      <input type="file" accept="image/*" onChange={handleCustomFileUpload} className="hidden" />
+                    </label>
+                  </div>
+
+                  {/* LIVE CAMERA VIEWFINDER MODAL / INLINE VIEW */}
+                  {isCameraActive && (
+                    <div className="p-4 rounded-3xl bg-slate-950 border-2 border-emerald-500 text-white space-y-3 mb-4 animate-in zoom-in-95 duration-200 shadow-2xl">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="flex items-center gap-2 text-emerald-400 font-bold">
+                          <Video className="w-4 h-4 animate-pulse" />
+                          LIVE CAMERA STREAM ACTIVE
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleStopCamera}
+                          className="p-1 rounded-lg text-slate-400 hover:text-white"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="relative rounded-2xl overflow-hidden aspect-video bg-black flex items-center justify-center">
+                        <video
+                          ref={videoRef}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={handleStopCamera}
+                          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCaptureFrame}
+                          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/30"
+                        >
+                          <Camera className="w-4 h-4" />
+                          <span>Capture Photo Now</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Selected Image Preview */}
                   <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-950 aspect-video flex items-center justify-center shadow-xs">
                     {selectedImage ? (
                       <>
@@ -382,104 +496,104 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                           </div>
                         )}
                         <div className="absolute bottom-2 left-2 bg-slate-950/80 text-white backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-mono border border-slate-700">
-                          TARGET IMAGE READY
+                          TARGET IMAGE READY FOR AI SCAN
                         </div>
                       </>
                     ) : (
-                      <span className="text-xs text-slate-500">No photo selected</span>
+                      <span className="text-xs text-slate-500">No photo selected. Use Camera or Upload button above.</span>
                     )}
                   </div>
                 </div>
-              </div>
 
-              {/* Step 3: Interactive Location Selection */}
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-3">
-                  Step 3: Pinpoint Exact Hazard Location on GIS Map
-                </label>
-                <LocationPickerMap
-                  initialLat={coords.lat}
-                  initialLng={coords.lng}
-                  onLocationSelect={(lat, lng, fetchedAddress) => {
-                    setCoords({ lat, lng });
-                    if (fetchedAddress) setAddress(fetchedAddress);
-                  }}
-                />
-              </div>
-
-              {/* Step 4: Address & Ward */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Step 3: Interactive Location Selection */}
                 <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Detected Street Address
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-3">
+                    Step 3: Pinpoint Exact Hazard Location on GIS Map
                   </label>
-                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100">
-                    <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    <input
-                      type="text"
-                      required
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Street / Landmark..."
-                      className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100"
+                  <LocationPickerMap
+                    initialLat={coords.lat}
+                    initialLng={coords.lng}
+                    onLocationSelect={(lat, lng, fetchedAddress) => {
+                      setCoords({ lat, lng });
+                      if (fetchedAddress) setAddress(fetchedAddress);
+                    }}
+                  />
+                </div>
+
+                {/* Step 4: Address & Ward */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Detected Street Address
+                    </label>
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100">
+                      <MapPin className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <input
+                        type="text"
+                        required
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        placeholder="Street / Landmark..."
+                        className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Municipal Ward</label>
+                    <select
+                      value={ward}
+                      onChange={(e) => setWard(e.target.value)}
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
+                    >
+                      <option value="Ward 1 - Metro Central">Ward 1 - Metro Central</option>
+                      <option value="Ward 2 - West Industrial">Ward 2 - West Industrial</option>
+                      <option value="Ward 4 - East Tech Corridor">Ward 4 - East Tech Corridor</option>
+                      <option value="Ward 5 - South Hub">Ward 5 - South Hub</option>
+                      <option value="Ward 7 - South Central">Ward 7 - South Central</option>
+                      <option value="Ward 9 - North Ecological Reserve">Ward 9 - North Ecological Reserve</option>
+                      <option value="Ward 11 - East Suburbs">Ward 11 - East Suburbs</option>
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                      Additional Notes / Landmarks (Optional)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe severity, hazards to vehicles/pedestrians, or exact landmark..."
+                      className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 outline-none resize-none focus:border-emerald-500"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">Municipal Ward</label>
-                  <select
-                    value={ward}
-                    onChange={(e) => setWard(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 outline-none cursor-pointer"
-                  >
-                    <option value="Ward 1 - Metro Central">Ward 1 - Metro Central</option>
-                    <option value="Ward 2 - West Industrial">Ward 2 - West Industrial</option>
-                    <option value="Ward 4 - East Tech Corridor">Ward 4 - East Tech Corridor</option>
-                    <option value="Ward 5 - South Hub">Ward 5 - South Hub</option>
-                    <option value="Ward 7 - South Central">Ward 7 - South Central</option>
-                    <option value="Ward 9 - North Ecological Reserve">Ward 9 - North Ecological Reserve</option>
-                    <option value="Ward 11 - East Suburbs">Ward 11 - East Suburbs</option>
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Additional Notes / Landmarks (Optional)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe severity, hazards to vehicles/pedestrians, or exact landmark..."
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 outline-none resize-none focus:border-emerald-500"
-                  />
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={!selectedImage || isAnalyzing}
-                className="w-full py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Processing with AI Vision...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5 text-slate-950" />
-                    <span>Submit Grievance to Municipal Portal</span>
-                  </>
-                )}
-              </button>
-            </form>
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={!selectedImage || isAnalyzing}
+                  className="w-full py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Processing with AI Vision...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 text-slate-950" />
+                      <span>Submit Grievance to Municipal Portal</span>
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
         )}
 
-        {/* TAB 2: MY GRIEVANCES & LIVE STATUS TRACKER */}
+        {/* VIEW 2: TRACK GRIEVANCES & LIVE STATUS TRACKER (Opened via bottom Track option) */}
         {activeTab === 'history' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -653,7 +767,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
         )}
       </main>
 
-      {/* USER PAGE FIXED BOTTOM NAVIGATION:
+      {/* USER PAGE FIXED BOTTOM NAVIGATION DOCK:
           Left: Raise
           Center: Track (Prominent & highlighted)
           Right: Help & Support (TN Govt details) */}

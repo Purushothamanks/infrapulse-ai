@@ -4,8 +4,6 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
   ShieldCheck,
-  PlusCircle,
-  Activity,
   Smartphone,
   Leaf,
   LogOut,
@@ -15,7 +13,6 @@ import {
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface NavbarProps {
-  onOpenReport: () => void;
   onOpenMobileQr: () => void;
   onOpenImpact: () => void;
   activeFilter: string;
@@ -24,7 +21,6 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  onOpenReport,
   onOpenMobileQr,
   onOpenImpact,
   activeFilter,
@@ -39,22 +35,14 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand Logo */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 shadow-md shadow-emerald-500/20 text-slate-950 font-black shrink-0">
-            <Activity className="w-5 h-5 text-white animate-pulse" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="text-base sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-1">
-                InfraPulse<span className="text-emerald-500 dark:text-emerald-400 font-mono">.AI</span>
-              </h1>
-              <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                COMMAND CENTER
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden lg:block truncate">
-              Municipal Urban Infrastructure Triage & Sustainable Action
-            </p>
-          </div>
+          <img
+            src="/logo.jpeg"
+            alt="InfraPulse AI Logo"
+            className="h-9 sm:h-10 w-auto object-contain rounded-xl shadow-xs"
+          />
+          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+            COMMAND CENTER
+          </span>
         </div>
 
         {/* Center / Action Buttons */}
@@ -80,16 +68,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Smartphone className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <span className="hidden md:inline">Mobile View</span>
-          </button>
-
-          {/* Citizen Report Button */}
-          <button
-            onClick={onOpenReport}
-            className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/30 transition-all transform active:scale-95 cursor-pointer"
-          >
-            <PlusCircle className="w-4 h-4 text-slate-950 stroke-[2.5]" />
-            <span className="font-bold hidden sm:inline">Report Hazard</span>
-            <span className="font-bold sm:hidden">Report</span>
           </button>
 
           {/* TOP RIGHT: ADMIN PROFILE WITH LOGOUT DROPDOWN */}

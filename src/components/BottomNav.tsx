@@ -1,12 +1,11 @@
 'use client';
 
 import React from 'react';
-import { Map, ListFilter, Plus, BarChart2, Smartphone } from 'lucide-react';
+import { Map, ListFilter, BarChart2, Smartphone } from 'lucide-react';
 
 interface BottomNavProps {
   currentTab: 'map' | 'queue' | 'stats';
   setCurrentTab: (tab: 'map' | 'queue' | 'stats') => void;
-  onOpenReport: () => void;
   onOpenMobileQr: () => void;
   queueCount: number;
 }
@@ -14,7 +13,6 @@ interface BottomNavProps {
 export const BottomNav: React.FC<BottomNavProps> = ({
   currentTab,
   setCurrentTab,
-  onOpenReport,
   onOpenMobileQr,
   queueCount
 }) => {
@@ -49,19 +47,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               {queueCount}
             </span>
           </div>
-          <span className="text-[10px]">Feed</span>
+          <span className="text-[10px]">Queue</span>
         </button>
-
-        {/* Center Floating Action Button (FAB) for Camera / Report */}
-        <div className="relative -top-5">
-          <button
-            onClick={onOpenReport}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/40 border-4 border-white dark:border-slate-950 active:scale-95 transition-transform cursor-pointer"
-            aria-label="Report Civic Hazard"
-          >
-            <Plus className="w-6 h-6 stroke-[3]" />
-          </button>
-        </div>
 
         {/* Stats Tab */}
         <button
