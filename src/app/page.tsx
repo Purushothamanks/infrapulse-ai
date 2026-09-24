@@ -11,7 +11,7 @@ import { HazardInspectorModal } from '@/components/HazardInspectorModal';
 import { CitizenUploadDrawer } from '@/components/CitizenUploadDrawer';
 import { BottomNav } from '@/components/BottomNav';
 import { MobileQrModal } from '@/components/MobileQrModal';
-import { KpiDrawer } from '@/components/KpiDrawer';
+import { FullPageImpactView } from '@/components/FullPageImpactView';
 import { AuthView } from '@/components/AuthView';
 import { CitizenPortal } from '@/components/CitizenPortal';
 import {
@@ -30,7 +30,7 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
   const [isMobileQrOpen, setIsMobileQrOpen] = useState<boolean>(false);
-  const [isKpiOpen, setIsKpiOpen] = useState<boolean>(false);
+  const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
   const [reportCoords, setReportCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
 
@@ -92,7 +92,7 @@ export default function Home() {
       <Navbar
         onOpenReport={() => setIsUploadOpen(true)}
         onOpenMobileQr={() => setIsMobileQrOpen(true)}
-        onOpenKpiDrawer={() => setIsKpiOpen(true)}
+        onOpenImpact={() => setIsImpactOpen(true)}
         activeFilter={activeFilter}
         setActiveFilter={setActiveFilter}
         totalActiveHazards={hazards.length}
@@ -195,6 +195,10 @@ export default function Home() {
               hazards={filteredHazards}
               selectedHazard={selectedHazard}
               onSelectHazard={(h) => setSelectedHazard(h)}
+              onNavigateLocation={(hazard) => {
+                setSelectedHazard(hazard);
+                setMobileTab('map');
+              }}
             />
           </div>
         </div>
@@ -205,7 +209,7 @@ export default function Home() {
         currentTab={mobileTab}
         setCurrentTab={(tab) => {
           if (tab === 'stats') {
-            setIsKpiOpen(true);
+            setIsImpactOpen(true);
           } else {
             setMobileTab(tab);
           }
@@ -239,10 +243,10 @@ export default function Home() {
         localWifiUrl={localWifiUrl}
       />
 
-      {/* 3-Line Municipal Telemetry & KPI Drawer */}
-      <KpiDrawer
-        isOpen={isKpiOpen}
-        onClose={() => setIsKpiOpen(false)}
+      {/* Full-Page Municipal Sustainability & Environmental Impact View */}
+      <FullPageImpactView
+        isOpen={isImpactOpen}
+        onClose={() => setIsImpactOpen(false)}
         hazards={hazards}
       />
     </div>

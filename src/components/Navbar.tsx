@@ -6,20 +6,16 @@ import {
   ShieldCheck,
   PlusCircle,
   Activity,
-  Sparkles,
   Smartphone,
-  Menu,
-  BarChart3,
-  User as UserIcon,
+  Leaf,
   LogOut,
-  Building2,
   ChevronDown
 } from 'lucide-react';
 
 interface NavbarProps {
   onOpenReport: () => void;
   onOpenMobileQr: () => void;
-  onOpenKpiDrawer: () => void;
+  onOpenImpact: () => void;
   activeFilter: string;
   setActiveFilter: (filter: string) => void;
   totalActiveHazards: number;
@@ -28,7 +24,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenReport,
   onOpenMobileQr,
-  onOpenKpiDrawer,
+  onOpenImpact,
   activeFilter,
   setActiveFilter,
   totalActiveHazards
@@ -61,14 +57,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Center / Action Buttons */}
         <div className="flex items-center gap-2 shrink-0">
-          {/* 3-Line Button to view Municipal Telemetry & KPIs */}
+          {/* Impact Section Button (Opens Full Page Impact View) */}
           <button
-            onClick={onOpenKpiDrawer}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all cursor-pointer shadow-sm"
-            title="View Municipal Telemetry & KPIs"
+            onClick={onOpenImpact}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-500/40 text-emerald-300 transition-all cursor-pointer shadow-sm"
+            title="View Full-Page Environmental & Civic Impact"
           >
-            <Menu className="w-4 h-4 text-emerald-400" />
-            <span className="hidden sm:inline">Telemetry & KPIs</span>
+            <Leaf className="w-4 h-4 text-emerald-400" />
+            <span className="font-bold">Impact</span>
           </button>
 
           {/* Mobile QR Button */}
@@ -109,7 +105,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
-            {/* Profile Dropdown Menu */}
+            {/* Profile Dropdown Menu (Only User Info + Logout) */}
             {profileDropdownOpen && (
               <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-slate-900 border border-slate-700 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2">
                 <div className="p-3 border-b border-slate-800 text-xs">
@@ -125,23 +121,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <button
                     onClick={() => {
                       setProfileDropdownOpen(false);
-                      onOpenKpiDrawer();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-300 hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
-                  >
-                    <BarChart3 className="w-4 h-4 text-emerald-400" />
-                    <span>Municipal KPIs</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setProfileDropdownOpen(false);
                       logout();
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-950/40 transition-colors cursor-pointer text-left mt-1"
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-red-400 hover:bg-red-950/40 transition-colors cursor-pointer text-left"
                   >
                     <LogOut className="w-4 h-4" />
-                    <span>Log Out</span>
+                    <span className="font-semibold">Log Out</span>
                   </button>
                 </div>
               </div>

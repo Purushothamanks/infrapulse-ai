@@ -2,34 +2,36 @@
 
 import React from 'react';
 import { HazardReport } from '@/types/hazard';
-import { AlertTriangle, Clock, MapPin, ChevronRight, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Clock, MapPin, ChevronRight, CheckCircle2, ShieldAlert, Navigation } from 'lucide-react';
 
 interface HazardQueueProps {
   hazards: HazardReport[];
   selectedHazard: HazardReport | null;
   onSelectHazard: (hazard: HazardReport) => void;
+  onNavigateLocation: (hazard: HazardReport) => void;
 }
 
 export const HazardQueue: React.FC<HazardQueueProps> = ({
   hazards,
   selectedHazard,
-  onSelectHazard
+  onSelectHazard,
+  onNavigateLocation
 }) => {
   return (
-    <div className="w-full rounded-3xl bg-slate-950 border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[580px]">
+    <div className="w-full rounded-2xl sm:rounded-3xl bg-slate-950 border border-slate-800 shadow-xl overflow-hidden flex flex-col h-[480px] sm:h-[580px]">
       {/* Queue Header */}
-      <div className="p-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
+      <div className="p-3.5 sm:p-4 border-b border-slate-800 bg-slate-900/60 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-emerald-400" />
           <h3 className="font-bold text-white text-sm">Live Triage Queue</h3>
         </div>
-        <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+        <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
           {hazards.length} Incidents
         </span>
       </div>
 
       {/* Incident List */}
-      <div className="overflow-y-auto p-3 space-y-2.5 flex-1 scrollbar-thin scrollbar-thumb-slate-800">
+      <div className="overflow-y-auto p-2.5 sm:p-3 space-y-2.5 flex-1 scrollbar-thin scrollbar-thumb-slate-800">
         {hazards.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-500 text-xs py-8">
             <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2" />
@@ -44,7 +46,7 @@ export const HazardQueue: React.FC<HazardQueueProps> = ({
               <div
                 key={hazard.id}
                 onClick={() => onSelectHazard(hazard)}
-                className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 group ${
+                className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 sm:gap-3 group ${
                   isSelected
                     ? 'bg-slate-800 border-emerald-500 shadow-md shadow-emerald-500/10'
                     : isCritical
@@ -52,7 +54,7 @@ export const HazardQueue: React.FC<HazardQueueProps> = ({
                     : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
                 }`}
               >
-                <div className="flex items-start gap-3 min-w-0">
+                <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
                   {/* Thumbnail */}
                   <img
                     src={hazard.imageUrl}
@@ -60,7 +62,7 @@ export const HazardQueue: React.FC<HazardQueueProps> = ({
                     className="w-12 h-12 object-cover rounded-xl border border-slate-700 shrink-0 group-hover:scale-105 transition-transform"
                   />
 
-                  <div className="min-w-0 space-y-1">
+                  <div className="min-w-0 space-y-1 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span
                         className={`text-[10px] font-mono font-bold px-1.5 py-0.2 rounded ${
@@ -87,7 +89,23 @@ export const HazardQueue: React.FC<HazardQueueProps> = ({
                   </div>
                 </div>
 
-                <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white shrink-0 group-hover:translate-x-0.5 transition-all" />
+                {/* GPS MAP NAVIGATE SYMBOL BUTTON */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigateLocation(hazard);
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/30 text-emerald-400 hover:text-slate-950 transition-all cursor-pointer shadow-sm group/nav"
+                    title="Navigate Map to Hazard GPS Location"
+                  >
+                    <Navigation className="w-3.5 h-3.5 group-hover/nav:scale-110" />
+                    <span className="text-[10px] font-mono font-bold hidden sm:inline">GPS</span>
+                  </button>
+
+                  <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-white shrink-0 group-hover:translate-x-0.5 transition-all hidden sm:block" />
+                </div>
               </div>
             );
           })
