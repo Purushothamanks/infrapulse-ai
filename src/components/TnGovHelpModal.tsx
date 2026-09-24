@@ -235,7 +235,7 @@ export const TnGovHelpModal: React.FC<TnGovHelpModalProps> = ({ isOpen, onClose 
         {/* Modal Footer */}
         <div className="px-5 sm:px-7 py-3.5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/80 flex items-center justify-between">
           <span className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-            InfraPulse AI • Verified Municipal Connect
+            MyGovt AI Hub • Verified Municipal Connect
           </span>
           <button
             type="button"

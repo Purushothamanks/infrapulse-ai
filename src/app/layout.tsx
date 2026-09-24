@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "InfraPulse AI | Autonomous Urban Infrastructure Triage & Sustainable Cities",
+  title: "MyGovt AI Hub | Autonomous Urban Infrastructure Triage & Sustainable Cities",
   description: "AI-powered urban hazard computer vision inspection, geospatial triage, automated municipal dispatch, and UN SDG 11 sustainability copilot.",
 };
 

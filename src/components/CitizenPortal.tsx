@@ -271,7 +271,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img
               src="/logo.jpeg"
-              alt="InfraPulse AI Logo"
+              alt="MyGovt AI Hub Logo"
               className="h-9 sm:h-10 w-auto object-contain rounded-xl shadow-xs"
             />
             <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">

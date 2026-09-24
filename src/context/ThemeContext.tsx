@@ -21,7 +21,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem('infrapulse_theme') as Theme | null;
+      const stored = (localStorage.getItem('mygovtai_theme') || localStorage.getItem('infrapulse_theme')) as Theme | null;
       if (stored === 'light' || stored === 'dark') {
         setThemeState(stored);
         applyTheme(stored);
@@ -44,7 +44,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       root.classList.add('light');
     }
     try {
-      localStorage.setItem('infrapulse_theme', t);
+      localStorage.setItem('mygovtai_theme', t);
     } catch {}
   };
 

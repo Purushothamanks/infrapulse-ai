@@ -15,8 +15,6 @@ import { AuthView } from '@/components/AuthView';
 import { CitizenPortal } from '@/components/CitizenPortal';
 import {
   Radio,
-  Map as MapIcon,
-  ListFilter,
   Loader2,
   Filter
 } from 'lucide-react';
@@ -32,7 +30,7 @@ export default function Home() {
   const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
 
-  const [publicUrl, setPublicUrl] = useState<string>('http://3.6.172.250');
+  const [publicUrl, setPublicUrl] = useState<string>('https://3-6-172-250.sslip.io');
   const localWifiUrl = 'http://10.121.226.91:3000';
 
   useEffect(() => {
@@ -44,7 +42,7 @@ export default function Home() {
   // Load hazards from localStorage on mount so changes between admin & citizen sync seamlessly
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('infrapulse_hazards');
+      const saved = localStorage.getItem('mygovtai_hazards') || localStorage.getItem('infrapulse_hazards');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -57,7 +55,7 @@ export default function Home() {
   const saveHazards = (newHazards: HazardReport[]) => {
     setHazards(newHazards);
     try {
-      localStorage.setItem('infrapulse_hazards', JSON.stringify(newHazards));
+      localStorage.setItem('mygovtai_hazards', JSON.stringify(newHazards));
     } catch {}
   };
 
@@ -94,7 +92,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 gap-3 transition-colors">
         <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-        <span className="text-xs font-mono">Initializing InfraPulse Secure Portal...</span>
+        <span className="text-xs font-mono">Initializing MyGovt AI Hub Secure Portal...</span>
       </div>
     );
   }
@@ -139,31 +137,6 @@ export default function Home() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4">
-        {/* Mobile View Tab Switcher (Visible only on mobile/tablet) */}
-        <div className="flex lg:hidden items-center justify-center p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
-          <button
-            onClick={() => setMobileTab('map')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              mobileTab === 'map'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <MapIcon className="w-3.5 h-3.5" />
-            <span>GIS Map</span>
-          </button>
-          <button
-            onClick={() => setMobileTab('queue')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              mobileTab === 'queue'
-                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <ListFilter className="w-3.5 h-3.5" />
-            <span>Incidents Queue ({filteredHazards.length})</span>
-          </button>
-        </div>
 
         {/* Clean Filter Chips Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">

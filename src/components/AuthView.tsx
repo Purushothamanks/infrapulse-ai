@@ -25,7 +25,7 @@ export const AuthView: React.FC = () => {
 
   // Form Fields
   const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>('admin@infrapulse.gov');
+  const [email, setEmail] = useState<string>('admin@mygovtai.gov');
   const [password, setPassword] = useState<string>('admin123');
   const [officialId, setOfficialId] = useState<string>('');
 
@@ -47,7 +47,7 @@ export const AuthView: React.FC = () => {
     setVerificationSent(false);
     if (authMode === 'signin') {
       if (role === 'admin') {
-        setEmail('admin@infrapulse.gov');
+        setEmail('admin@mygovtai.gov');
         setPassword('admin123');
       } else {
         setEmail('citizen@gmail.com');
@@ -130,7 +130,7 @@ export const AuthView: React.FC = () => {
           <div className="flex justify-center mb-2">
             <img
               src="/logo.jpeg"
-              alt="InfraPulse AI Logo"
+              alt="MyGovt AI Hub Logo"
               className="h-14 sm:h-16 w-auto object-contain rounded-2xl shadow-md"
             />
           </div>
@@ -219,7 +219,7 @@ export const AuthView: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={selectedRole === 'admin' ? 'officer@infrapulse.gov' : 'name@example.com'}
+                    placeholder={selectedRole === 'admin' ? 'officer@mygovtai.gov' : 'name@example.com'}
                     className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
                   />
                 </div>

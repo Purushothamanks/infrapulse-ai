@@ -77,7 +77,7 @@ export const FullPageImpactView: React.FC<FullPageImpactViewProps> = ({
               Real-Time Ecological Mitigation & Civic Resource Conservation
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-              InfraPulse AI continuously measures how autonomous vision triage prevents carbon emissions from traffic congestion, saves treated drinking water, and halts groundwater pollution.
+              MyGovt AI Hub continuously measures how autonomous vision triage prevents carbon emissions from traffic congestion, saves treated drinking water, and halts groundwater pollution.
             </p>
           </div>
         </div>

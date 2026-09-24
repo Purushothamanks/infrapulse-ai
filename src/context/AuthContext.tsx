@@ -20,7 +20,7 @@ const DEFAULT_USERS: Array<User & { password: string }> = [
   {
     id: 'USR-ADM-001',
     name: 'Chief Commissioner R. Mohan',
-    email: 'admin@infrapulse.gov',
+    email: 'admin@mygovtai.gov',
     password: 'admin123',
     role: 'admin',
     officialId: 'BBMP-OFF-4091',
@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     // Restore session from localStorage
     try {
-      const stored = localStorage.getItem('infrapulse_session_user');
+      const stored = localStorage.getItem('mygovtai_session_user') || localStorage.getItem('infrapulse_session_user');
       if (stored) {
         setUser(JSON.parse(stored));
       }
@@ -59,12 +59,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check registered accounts
     const allUsers = [...DEFAULT_USERS];
     try {
-      const customUsers = JSON.parse(localStorage.getItem('infrapulse_registered_users') || '[]');
+      const customUsers = JSON.parse(localStorage.getItem('mygovtai_registered_users') || localStorage.getItem('infrapulse_registered_users') || '[]');
       allUsers.push(...customUsers);
     } catch (_) {}
 
     const found = allUsers.find(
-      (u) => u.email.toLowerCase() === cleanEmail && u.role === role
+      (u) => (u.email.toLowerCase() === cleanEmail || (role === 'admin' && (cleanEmail === 'admin@infrapulse.gov' || cleanEmail === 'admin@mygovtai.gov'))) && u.role === role
     );
 
     if (!found) {
@@ -77,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const { password: _, ...userData } = found;
     setUser(userData);
-    localStorage.setItem('infrapulse_session_user', JSON.stringify(userData));
+    localStorage.setItem('mygovtai_session_user', JSON.stringify(userData));
     return { success: true };
   };
 
@@ -128,19 +128,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Save to registered users
     try {
-      const existing = JSON.parse(localStorage.getItem('infrapulse_registered_users') || '[]');
-      localStorage.setItem('infrapulse_registered_users', JSON.stringify([...existing, newUser]));
+      const existing = JSON.parse(localStorage.getItem('mygovtai_registered_users') || localStorage.getItem('infrapulse_registered_users') || '[]');
+      localStorage.setItem('mygovtai_registered_users', JSON.stringify([...existing, newUser]));
     } catch (_) {}
 
     const { password: _, ...userData } = newUser;
     setUser(userData);
-    localStorage.setItem('infrapulse_session_user', JSON.stringify(userData));
+    localStorage.setItem('mygovtai_session_user', JSON.stringify(userData));
 
     return { success: true };
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('mygovtai_session_user');
     localStorage.removeItem('infrapulse_session_user');
   };
 
@@ -148,7 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const target = DEFAULT_USERS.find((u) => u.role === role)!;
     const { password: _, ...userData } = target;
     setUser(userData);
-    localStorage.setItem('infrapulse_session_user', JSON.stringify(userData));
+    localStorage.setItem('mygovtai_session_user', JSON.stringify(userData));
   };
 
   return (
