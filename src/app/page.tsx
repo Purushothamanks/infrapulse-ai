@@ -1,69 +1,250 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { initialHazards } from '@/data/mockHazards';
+import { HazardReport } from '@/types/hazard';
+import { Navbar } from '@/components/Navbar';
+import { RealWorldCityMap } from '@/components/RealWorldCityMap';
+import { HazardQueue } from '@/components/HazardQueue';
+import { HazardInspectorModal } from '@/components/HazardInspectorModal';
+import { CitizenUploadDrawer } from '@/components/CitizenUploadDrawer';
+import { BottomNav } from '@/components/BottomNav';
+import { MobileQrModal } from '@/components/MobileQrModal';
+import { KpiDrawer } from '@/components/KpiDrawer';
+import { AuthView } from '@/components/AuthView';
+import { CitizenPortal } from '@/components/CitizenPortal';
+import {
+  Radio,
+  Map as MapIcon,
+  ListFilter,
+  Loader2,
+  Filter
+} from 'lucide-react';
 
 export default function Home() {
+  const { user, isLoading } = useAuth();
+
+  const [hazards, setHazards] = useState<HazardReport[]>(initialHazards);
+  const [selectedHazard, setSelectedHazard] = useState<HazardReport | null>(null);
+  const [activeFilter, setActiveFilter] = useState<string>('ALL');
+  const [isUploadOpen, setIsUploadOpen] = useState<boolean>(false);
+  const [isMobileQrOpen, setIsMobileQrOpen] = useState<boolean>(false);
+  const [isKpiOpen, setIsKpiOpen] = useState<boolean>(false);
+  const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
+  const [reportCoords, setReportCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
+
+  const publicUrl = 'https://high-tion-best-futures.trycloudflare.com';
+  const localWifiUrl = 'http://10.121.226.91:3000';
+
+  // Filter hazards
+  const filteredHazards = hazards.filter((h) => {
+    if (activeFilter === 'ALL') return true;
+    if (activeFilter === 'CRITICAL') return h.urgency === 'CRITICAL';
+    return h.type === activeFilter;
+  });
+
+  const handleAddHazard = (newReport: HazardReport) => {
+    setHazards((prev) => [newReport, ...prev]);
+    setSelectedHazard(newReport);
+    setMobileTab('map');
+  };
+
+  const handleUpdateHazard = (updated: HazardReport) => {
+    setHazards((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
+    setSelectedHazard(updated);
+  };
+
+  // 1. Loading State
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+        <span className="text-xs font-mono">Initializing InfraPulse Secure Portal...</span>
+      </div>
+    );
+  }
+
+  // 2. Unauthenticated State -> Render Auth Portal
+  if (!user) {
+    return <AuthView />;
+  }
+
+  // 3. Civilian Citizen State -> Render Citizen Grievance Portal
+  if (user.role === 'citizen') {
+    return <CitizenPortal hazards={hazards} onAddHazard={handleAddHazard} />;
+  }
+
+  // 4. Municipal Admin State -> Render Streamlined Admin Command Center
+  const criticalCount = hazards.filter((h) => h.urgency === 'CRITICAL').length;
+  const filters = [
+    { id: 'ALL', label: 'All Incidents', count: hazards.length },
+    { id: 'CRITICAL', label: 'Critical Risk', count: criticalCount },
+    { id: 'pothole', label: 'Roads & Pavements', count: hazards.filter((h) => h.type === 'pothole').length },
+    { id: 'water_leak', label: 'Water Mains', count: hazards.filter((h) => h.type === 'water_leak').length },
+    { id: 'structural_crack', label: 'Structural', count: hazards.filter((h) => h.type === 'structural_crack').length },
+    { id: 'illegal_waste', label: 'Waste Dumping', count: hazards.filter((h) => h.type === 'illegal_waste').length },
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-slate-950 flex flex-col pb-20 lg:pb-6">
+      {/* Navigation Header with Admin Profile & Logout */}
+      <Navbar
+        onOpenReport={() => setIsUploadOpen(true)}
+        onOpenMobileQr={() => setIsMobileQrOpen(true)}
+        onOpenKpiDrawer={() => setIsKpiOpen(true)}
+        activeFilter={activeFilter}
+        setActiveFilter={setActiveFilter}
+        totalActiveHazards={hazards.length}
+      />
+
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4">
+        {/* Mobile View Tab Switcher (Visible only on mobile/tablet) */}
+        <div className="flex lg:hidden items-center justify-center p-1 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
+          <button
+            onClick={() => setMobileTab('map')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              mobileTab === 'map'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <MapIcon className="w-3.5 h-3.5" />
+            <span>GIS Map</span>
+          </button>
+          <button
+            onClick={() => setMobileTab('queue')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              mobileTab === 'queue'
+                ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ListFilter className="w-3.5 h-3.5" />
+            <span>Incidents Queue ({filteredHazards.length})</span>
+          </button>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        {/* Clean Filter Chips Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
+          <div className="flex items-center gap-1 text-slate-500 mr-1 shrink-0">
+            <Filter className="w-3.5 h-3.5" />
+            <span className="font-mono text-[10px] hidden sm:inline">FILTER:</span>
+          </div>
+          {filters.map((filter) => {
+            const isActive = activeFilter === filter.id;
+            return (
+              <button
+                key={filter.id}
+                onClick={() => setActiveFilter(filter.id)}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer ${
+                  isActive
+                    ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
+                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800'
+                }`}
+              >
+                <span>{filter.label}</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    isActive ? 'bg-slate-950/30 text-slate-950' : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {filter.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Dual Pane Layout (Map 8 Cols, Queue 4 Cols on Desktop) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 items-start">
+          {/* Map View */}
+          <div
+            className={`space-y-2 lg:col-span-8 ${
+              mobileTab === 'map' ? 'block' : 'hidden lg:block'
+            }`}
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+            <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-400 px-1">
+              <span className="flex items-center gap-1.5 font-mono">
+                <Radio className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-400 animate-pulse" />
+                TACTICAL MUNICIPAL GIS SENSOR GRID
+              </span>
+              <span className="font-mono text-emerald-400 hidden sm:inline">
+                PULSING PINS: CRITICAL HAZARD
+              </span>
+            </div>
+            <RealWorldCityMap
+              hazards={filteredHazards}
+              selectedHazard={selectedHazard}
+              onSelectHazard={(h) => setSelectedHazard(h)}
+              onDropPinReport={(lat, lng) => {
+                setReportCoords({ lat, lng });
+                setIsUploadOpen(true);
+              }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+
+          {/* Incident Queue */}
+          <div
+            className={`lg:col-span-4 ${
+              mobileTab === 'queue' ? 'block' : 'hidden lg:block'
+            }`}
           >
-            Documentation
-          </a>
+            <HazardQueue
+              hazards={filteredHazards}
+              selectedHazard={selectedHazard}
+              onSelectHazard={(h) => setSelectedHazard(h)}
+            />
+          </div>
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation Bar (Visible on mobile/tablet) */}
+      <BottomNav
+        currentTab={mobileTab}
+        setCurrentTab={(tab) => {
+          if (tab === 'stats') {
+            setIsKpiOpen(true);
+          } else {
+            setMobileTab(tab);
+          }
+        }}
+        onOpenReport={() => setIsUploadOpen(true)}
+        onOpenMobileQr={() => setIsMobileQrOpen(true)}
+        queueCount={filteredHazards.length}
+      />
+
+      {/* Popups, Drawers & Modals */}
+      <HazardInspectorModal
+        hazard={selectedHazard}
+        onClose={() => setSelectedHazard(null)}
+        onUpdateHazard={handleUpdateHazard}
+      />
+
+      <CitizenUploadDrawer
+        isOpen={isUploadOpen}
+        onClose={() => {
+          setIsUploadOpen(false);
+          setReportCoords(undefined);
+        }}
+        onAddHazard={handleAddHazard}
+        initialCoords={reportCoords}
+      />
+
+      <MobileQrModal
+        isOpen={isMobileQrOpen}
+        onClose={() => setIsMobileQrOpen(false)}
+        publicUrl={publicUrl}
+        localWifiUrl={localWifiUrl}
+      />
+
+      {/* 3-Line Municipal Telemetry & KPI Drawer */}
+      <KpiDrawer
+        isOpen={isKpiOpen}
+        onClose={() => setIsKpiOpen(false)}
+        hazards={hazards}
+      />
     </div>
   );
 }

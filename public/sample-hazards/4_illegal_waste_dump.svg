@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <rect width="800" height="600" fill="#064e3b"/>
+  <!-- Suburban edge ground -->
+  <rect x="0" y="280" width="800" height="320" fill="#78350f" opacity="0.6"/>
+  <!-- Waste mound -->
+  <path d="M 160 520 Q 300 280 460 300 Q 620 310 700 520 Z" fill="#451a03" opacity="0.9"/>
+  <!-- Plastic, debris fragments -->
+  <polygon points="260,450 300,410 320,440 280,470" fill="#ef4444"/>
+  <polygon points="410,380 450,360 470,400 420,410" fill="#3b82f6"/>
+  <polygon points="510,430 550,420 560,460 520,470" fill="#eab308"/>
+  <circle cx="360" cy="430" r="25" fill="#64748b"/>
+  <circle cx="480" cy="460" r="35" fill="#1e293b"/>
+  <!-- Toxic biohazard symbol / smoke -->
+  <path d="M 380 270 Q 390 220 370 180 M 430 280 Q 450 230 440 190" stroke="#a3e635" stroke-width="4" stroke-dasharray="6 4" fill="none" opacity="0.6"/>
+  
+  <!-- AI HUD -->
+  <rect x="180" y="240" width="500" height="300" rx="8" fill="none" stroke="#10b981" stroke-width="3" stroke-dasharray="10 6"/>
+  <rect x="180" y="205" width="320" height="35" rx="4" fill="#10b981" fill-opacity="0.9"/>
+  <text x="195" y="228" font-family="monospace" font-size="14" font-weight="bold" fill="#064e3b">ILLEGAL_WASTE_BIOMASS [97.5%]</text>
+  <text x="195" y="565" font-family="monospace" font-size="12" fill="#6ee7b7">SDG 11 CONFLICT | VOLUME: ~4.2 TONS</text>
+</svg>
