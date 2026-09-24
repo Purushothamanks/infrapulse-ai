@@ -1,18 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { HazardReport, WorkOrder } from '@/types/hazard';
+import { HazardReport, HazardProgress, getHazardProgress, progressToStatus } from '@/types/hazard';
 import {
   X,
-  ShieldAlert,
   MapPin,
   Clock,
   Sparkles,
   FileText,
   Truck,
   CheckCircle,
-  ExternalLink,
-  Printer,
   Leaf,
   AlertTriangle,
   UserCheck
@@ -33,6 +30,17 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
 
   if (!hazard) return null;
 
+  const currentProgress = getHazardProgress(hazard.status);
+  const PROGRESS_OPTIONS: HazardProgress[] = ['Not started', 'In progress', 'Completed'];
+
+  const handleProgressChange = (newProg: HazardProgress) => {
+    const newStatus = progressToStatus(newProg);
+    onUpdateHazard({
+      ...hazard,
+      status: newStatus
+    });
+  };
+
   const handleGenerateWorkOrder = async () => {
     setIsGeneratingWorkOrder(true);
     try {
@@ -51,7 +59,7 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
       if (data.success && data.workOrder) {
         const updated: HazardReport = {
           ...hazard,
-          status: 'DISPATCHED',
+          status: 'IN_PROGRESS',
           workOrder: data.workOrder
         };
         onUpdateHazard(updated);
@@ -71,22 +79,22 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
   const getUrgencyBadge = (urgency: string) => {
     switch (urgency) {
       case 'CRITICAL':
-        return 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse';
+        return 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-500/40 animate-pulse';
       case 'HIGH':
-        return 'bg-amber-500/20 text-amber-400 border-amber-500/40';
+        return 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 border-amber-300 dark:border-amber-500/40';
       default:
-        return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+        return 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/40';
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
-      <div className="relative w-full max-w-4xl max-h-[90vh] sm:max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-slate-900 border border-slate-700/80 shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-950/70 dark:bg-slate-950/85 backdrop-blur-md overflow-hidden animate-in fade-in duration-200">
+      <div className="relative w-full max-w-4xl max-h-[90vh] sm:max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 shadow-2xl overflow-hidden transition-colors">
         {/* Mobile Drag Indicator */}
-        <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mt-2.5 sm:hidden" />
+        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mt-2.5 sm:hidden" />
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-800 bg-slate-950/50">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
           <div className="flex items-center gap-2 sm:gap-3">
             <span
               className={`px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-mono font-bold border ${getUrgencyBadge(
@@ -95,11 +103,13 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
             >
               {hazard.urgency} [{hazard.severity}/100]
             </span>
-            <span className="text-[10px] sm:text-xs font-mono text-slate-400">ID: {hazard.id}</span>
+            <span className="text-[10px] sm:text-xs font-mono text-slate-500 dark:text-slate-400">
+              ID: {hazard.id}
+            </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -108,23 +118,55 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
         {/* Modal Scrollable Body */}
         <div className="p-4 sm:p-6 overflow-y-auto space-y-5 sm:space-y-6">
           {/* Main Info Header */}
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white">{hazard.title}</h2>
-            <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-slate-400">
-              <span className="flex items-center gap-1 text-slate-300">
-                <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                {hazard.location.address} ({hazard.location.ward})
-              </span>
-              <span className="flex items-center gap-1 font-mono">
-                <Clock className="w-3.5 h-3.5 text-cyan-400" />
-                {hazard.reportedAt}
-              </span>
-              {hazard.citizenName && (
-                <span className="flex items-center gap-1 text-slate-300">
-                  <UserCheck className="w-3.5 h-3.5 text-indigo-400" />
-                  {hazard.citizenName}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">{hazard.title}</h2>
+              <div className="flex flex-wrap items-center gap-4 mt-2 text-xs text-slate-600 dark:text-slate-400">
+                <span className="flex items-center gap-1 text-slate-800 dark:text-slate-300">
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  {hazard.location.address} ({hazard.location.ward})
                 </span>
-              )}
+                <span className="flex items-center gap-1 font-mono">
+                  <Clock className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                  {hazard.reportedAt}
+                </span>
+                {hazard.citizenName && (
+                  <span className="flex items-center gap-1 text-slate-800 dark:text-slate-300">
+                    <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    {hazard.citizenName}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* ADMIN PROGRESS CONTROLLER */}
+            <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Stage:
+              </span>
+              <div className="flex items-center gap-1">
+                {PROGRESS_OPTIONS.map((opt) => {
+                  const isCurrent = currentProgress === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => handleProgressChange(opt)}
+                      className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        isCurrent
+                          ? opt === 'Completed'
+                            ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                            : opt === 'In progress'
+                            ? 'bg-cyan-500 text-slate-950 shadow-xs'
+                            : 'bg-amber-500 text-slate-950 shadow-xs'
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -132,26 +174,39 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Left: Scanned Image with AI Vision HUD */}
             <div className="space-y-3">
-              <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 aspect-video group">
+              <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-950 aspect-video group shadow-sm">
                 <img
                   src={hazard.imageUrl}
                   alt={hazard.title}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
-                {/* HUD Overlay Elements */}
-                <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md px-2.5 py-1 rounded-md border border-slate-700 text-[10px] font-mono text-emerald-400 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-emerald-400" />
-                  <span>AI VISION SCANNER VERIFIED</span>
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none" />
+
+                {/* AI Bounding Box HUD */}
+                <div className="absolute top-4 left-4 right-4 bottom-12 border-2 border-emerald-400/80 rounded-xl pointer-events-none flex flex-col justify-between p-2">
+                  <div className="flex justify-between items-start">
+                    <span className="bg-emerald-500 text-slate-950 font-mono text-[10px] font-bold px-1.5 py-0.5 rounded">
+                      CV CLASSIFIER: {hazard.type.toUpperCase()}
+                    </span>
+                    <span className="bg-slate-950/90 text-emerald-400 font-mono text-[10px] px-1.5 py-0.5 rounded border border-emerald-500/40">
+                      CONF: {hazard.aiAnalysis.confidence}%
+                    </span>
+                  </div>
                 </div>
-                <div className="absolute bottom-3 right-3 bg-slate-950/90 backdrop-blur-md px-3 py-1 rounded-md border border-slate-700 text-[11px] font-mono text-white">
-                  <span>CONFIDENCE: {hazard.aiAnalysis.confidence}%</span>
+
+                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[11px] font-mono text-slate-300">
+                  <span className="flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    Autonomous CV Triage
+                  </span>
+                  <span>GEOTAG VERIFIED</span>
                 </div>
               </div>
 
               {/* Detected Physical Dimensions */}
-              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 text-xs">
-                <div className="font-semibold text-slate-300">Estimated Physical Scale</div>
-                <p className="font-mono text-cyan-300 mt-0.5">{hazard.aiAnalysis.dimensionsEstimated}</p>
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-xs">
+                <div className="font-semibold text-slate-700 dark:text-slate-300">Estimated Physical Scale</div>
+                <p className="font-mono text-cyan-600 dark:text-cyan-300 mt-0.5">{hazard.aiAnalysis.dimensionsEstimated}</p>
               </div>
             </div>
 
@@ -159,14 +214,14 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
             <div className="space-y-4">
               {/* Feature Tags */}
               <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
                   Computer Vision Detected Markers
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {hazard.aiAnalysis.detectedFeatures.map((feat, idx) => (
                     <span
                       key={idx}
-                      className="px-2.5 py-1 rounded-lg text-xs bg-slate-800 border border-slate-700 text-slate-200"
+                      className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium"
                     >
                       {feat}
                     </span>
@@ -175,25 +230,25 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
               </div>
 
               {/* Sustainability & Carbon Impact */}
-              <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-xs space-y-1.5">
-                <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/30 text-xs space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-400">
                   <Leaf className="w-4 h-4" />
                   <span>Environmental & SDG 11 Impact</span>
                 </div>
-                <p className="text-slate-300 leading-relaxed">{hazard.aiAnalysis.sustainabilityImpact}</p>
-                <div className="pt-1 text-[11px] font-mono text-emerald-300">
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{hazard.aiAnalysis.sustainabilityImpact}</p>
+                <div className="pt-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-300 font-semibold">
                   Carbon Penalty: {hazard.aiAnalysis.carbonPenaltyKgPerDay} kg CO₂ equivalent / day
                 </div>
               </div>
 
               {/* AI Recommended Remediation Action */}
-              <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 text-xs space-y-1.5">
-                <div className="flex items-center gap-1.5 font-bold text-amber-400">
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
                   <AlertTriangle className="w-4 h-4" />
                   <span>Suggested Municipal Protocol</span>
                 </div>
-                <p className="text-slate-300 leading-relaxed">{hazard.aiAnalysis.suggestedAction}</p>
-                <div className="pt-1 text-slate-400 font-mono text-[11px]">
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{hazard.aiAnalysis.suggestedAction}</p>
+                <div className="pt-1 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
                   Estimated Remediation Budget: ₹{hazard.aiAnalysis.estimatedCost.toLocaleString()}
                 </div>
               </div>
@@ -201,57 +256,57 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
           </div>
 
           {/* Work Order Section */}
-          <div className="border-t border-slate-800 pt-6">
+          <div className="border-t border-slate-200 dark:border-slate-800 pt-6">
             {hazard.workOrder ? (
-              <div className="p-5 rounded-2xl bg-slate-950/80 border border-cyan-500/30 space-y-4">
+              <div className="p-5 rounded-2xl bg-cyan-50/50 dark:bg-slate-950/80 border border-cyan-200 dark:border-cyan-500/30 space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-cyan-400" />
-                    <span className="font-bold text-white text-sm">
+                    <CheckCircle className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                    <span className="font-bold text-slate-900 dark:text-white text-sm">
                       Official Work Order Dispatched: {hazard.workOrder.orderId}
                     </span>
                   </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/40">
                     {hazard.workOrder.status}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400 block">Assigned Contractor Unit</span>
-                    <span className="font-semibold text-slate-200 mt-0.5 block">
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 dark:text-slate-400 block">Assigned Contractor Unit</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5 block">
                       {hazard.workOrder.contractorTeam}
                     </span>
-                    <span className="text-[11px] font-mono text-slate-400">{hazard.workOrder.contactNumber}</span>
+                    <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">{hazard.workOrder.contactNumber}</span>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400 block">Dispatch Schedule</span>
-                    <span className="font-semibold text-emerald-400 mt-0.5 block">
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 dark:text-slate-400 block">Dispatch Schedule</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 block">
                       {hazard.workOrder.scheduledDispatch}
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
                       Est. Time: {hazard.workOrder.estimatedRepairHours} Hours
                     </span>
                   </div>
-                  <div className="p-3 rounded-xl bg-slate-900 border border-slate-800">
-                    <span className="text-slate-400 block">Allocated Municipal Budget</span>
-                    <span className="font-mono text-cyan-300 font-bold mt-0.5 block">
+                  <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                    <span className="text-slate-500 dark:text-slate-400 block">Allocated Municipal Budget</span>
+                    <span className="font-mono text-cyan-700 dark:text-cyan-300 font-bold mt-0.5 block">
                       ₹{hazard.workOrder.estimatedBudget.toLocaleString()}
                     </span>
-                    <span className="text-[11px] text-slate-400">Standard Civil Rate</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Standard Civil Rate</span>
                   </div>
                 </div>
 
                 {/* Materials Requisition List */}
                 <div className="text-xs">
-                  <span className="text-slate-400 font-semibold block mb-1.5">
+                  <span className="text-slate-600 dark:text-slate-400 font-semibold block mb-1.5">
                     Pre-Allocated Maintenance Materials:
                   </span>
                   <div className="flex flex-wrap gap-2">
                     {hazard.workOrder.requiredMaterials.map((mat, i) => (
                       <span
                         key={i}
-                        className="px-2 py-0.5 rounded-md bg-slate-900 text-slate-300 border border-slate-800 font-mono text-[11px]"
+                        className="px-2 py-0.5 rounded-md bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 font-mono text-[11px]"
                       >
                         ✓ {mat}
                       </span>
@@ -260,13 +315,13 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-emerald-500/20">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-emerald-50 dark:from-slate-950 via-teal-50 dark:via-slate-900 to-emerald-50 dark:to-slate-950 border border-emerald-300 dark:border-emerald-500/20">
                 <div>
-                  <h4 className="font-bold text-white text-sm flex items-center gap-2">
-                    <Truck className="w-4 h-4 text-emerald-400" />
+                  <h4 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                     Automate Civic Maintenance Dispatch
                   </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                     Generate an official contractor work order with material inventory and schedule assignment.
                   </p>
                 </div>

@@ -257,18 +257,18 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[380px] sm:h-[480px] lg:h-[580px] rounded-2xl sm:rounded-3xl bg-slate-950 border border-emerald-900/40 shadow-2xl overflow-hidden group">
+    <div className="relative w-full h-[380px] sm:h-[480px] lg:h-[580px] rounded-2xl sm:rounded-3xl bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-emerald-900/40 shadow-xl overflow-hidden group transition-colors">
       {/* Map DOM Container */}
       <div ref={mapContainerRef} className="w-full h-full z-10" />
 
       {/* Top Map HUD Bar */}
       <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-20 flex items-center justify-between pointer-events-none gap-2">
-        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1.5 rounded-xl border border-slate-800 text-[10px] sm:text-xs font-mono shadow-lg truncate">
-          <Crosshair className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-400 animate-spin shrink-0" />
-          <span className="text-slate-200 font-semibold truncate">
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto bg-white/95 dark:bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10px] sm:text-xs font-mono shadow-md truncate">
+          <Crosshair className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-600 dark:text-emerald-400 animate-spin shrink-0" />
+          <span className="text-slate-800 dark:text-slate-200 font-semibold truncate">
             {mapStyle === 'streets' ? 'ROADMAP' : 'SATELLITE'}
           </span>
-          <span className="text-emerald-400 font-bold hidden md:inline">
+          <span className="text-emerald-600 dark:text-emerald-400 font-bold hidden md:inline">
             12.9716° N, 77.5946° E
           </span>
         </div>
@@ -277,10 +277,10 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
         <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-medium border transition-all cursor-pointer shadow-lg backdrop-blur-md ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-medium border transition-all cursor-pointer shadow-md backdrop-blur-md ${
               showHeatmap
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-slate-200'
+                ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 font-bold'
+                : 'bg-white/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Flame className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
@@ -289,10 +289,10 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
 
           <button
             onClick={toggleMapStyle}
-            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-medium border transition-all cursor-pointer shadow-lg backdrop-blur-md ${
+            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-medium border transition-all cursor-pointer shadow-md backdrop-blur-md ${
               mapStyle === 'satellite'
-                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                : 'bg-slate-900/80 text-slate-400 border-slate-800 hover:text-slate-200'
+                ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/40 font-bold'
+                : 'bg-white/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <Layers className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
@@ -301,7 +301,7 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
 
           <button
             onClick={handleResetView}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 text-slate-300 border border-slate-800 hover:text-white shadow-lg backdrop-blur-md cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl bg-white/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white shadow-md backdrop-blur-md cursor-pointer"
             title="Reset City View"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -309,7 +309,7 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
 
           <button
             onClick={handleLocateMe}
-            className="p-1.5 sm:p-2 rounded-xl bg-slate-900/80 text-emerald-400 border border-slate-800 hover:text-emerald-300 shadow-lg backdrop-blur-md cursor-pointer"
+            className="p-1.5 sm:p-2 rounded-xl bg-white/90 dark:bg-slate-900/80 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 hover:text-emerald-700 dark:hover:text-emerald-300 shadow-md backdrop-blur-md cursor-pointer"
             title="Locate My GPS"
           >
             <Navigation className="w-3.5 h-3.5" />
@@ -319,7 +319,7 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
 
       {/* Bottom Map Legend */}
       <div className="absolute bottom-3 left-3 sm:left-4 right-14 sm:right-16 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        <div className="flex items-center gap-2 sm:gap-3 bg-slate-950/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1.5 rounded-xl border border-slate-800 text-[10px] sm:text-[11px] font-mono text-slate-300 pointer-events-auto">
+        <div className="flex items-center gap-2 sm:gap-3 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10px] sm:text-[11px] font-mono text-slate-800 dark:text-slate-300 shadow-md pointer-events-auto">
           <div className="flex items-center gap-1 sm:gap-1.5">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
             <span>Critical</span>

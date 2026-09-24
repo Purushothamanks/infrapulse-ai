@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { initialHazards } from '@/data/mockHazards';
 import { HazardReport } from '@/types/hazard';
@@ -37,6 +37,26 @@ export default function Home() {
   const publicUrl = 'https://high-tion-best-futures.trycloudflare.com';
   const localWifiUrl = 'http://10.121.226.91:3000';
 
+  // Load hazards from localStorage on mount so changes between admin & citizen sync seamlessly
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('infrapulse_hazards');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setHazards(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  const saveHazards = (newHazards: HazardReport[]) => {
+    setHazards(newHazards);
+    try {
+      localStorage.setItem('infrapulse_hazards', JSON.stringify(newHazards));
+    } catch {}
+  };
+
   // Filter hazards
   const filteredHazards = hazards.filter((h) => {
     if (activeFilter === 'ALL') return true;
@@ -45,21 +65,31 @@ export default function Home() {
   });
 
   const handleAddHazard = (newReport: HazardReport) => {
-    setHazards((prev) => [newReport, ...prev]);
+    const updated = [newReport, ...hazards];
+    saveHazards(updated);
     setSelectedHazard(newReport);
     setMobileTab('map');
   };
 
   const handleUpdateHazard = (updated: HazardReport) => {
-    setHazards((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
+    const next = hazards.map((h) => (h.id === updated.id ? updated : h));
+    saveHazards(next);
     setSelectedHazard(updated);
+  };
+
+  const handleDeleteHazard = (hazardId: string) => {
+    const next = hazards.filter((h) => h.id !== hazardId);
+    saveHazards(next);
+    if (selectedHazard?.id === hazardId) {
+      setSelectedHazard(null);
+    }
   };
 
   // 1. Loading State
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <Loader2 className="w-8 h-8 text-emerald-400 animate-spin" />
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 gap-3 transition-colors">
+        <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
         <span className="text-xs font-mono">Initializing InfraPulse Secure Portal...</span>
       </div>
     );
@@ -72,7 +102,13 @@ export default function Home() {
 
   // 3. Civilian Citizen State -> Render Citizen Grievance Portal
   if (user.role === 'citizen') {
-    return <CitizenPortal hazards={hazards} onAddHazard={handleAddHazard} />;
+    return (
+      <CitizenPortal
+        hazards={hazards}
+        onAddHazard={handleAddHazard}
+        onDeleteHazard={handleDeleteHazard}
+      />
+    );
   }
 
   // 4. Municipal Admin State -> Render Streamlined Admin Command Center
@@ -87,7 +123,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col pb-20 lg:pb-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col pb-20 lg:pb-6 transition-colors">
       {/* Navigation Header with Admin Profile & Logout */}
       <Navbar
         onOpenReport={() => setIsUploadOpen(true)}
@@ -101,13 +137,13 @@ export default function Home() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4">
         {/* Mobile View Tab Switcher (Visible only on mobile/tablet) */}
-        <div className="flex lg:hidden items-center justify-center p-1 rounded-2xl bg-slate-900 border border-slate-800 shadow-md">
+        <div className="flex lg:hidden items-center justify-center p-1 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
           <button
             onClick={() => setMobileTab('map')}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               mobileTab === 'map'
                 ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <MapIcon className="w-3.5 h-3.5" />
@@ -118,7 +154,7 @@ export default function Home() {
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               mobileTab === 'queue'
                 ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
-                : 'text-slate-400 hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
           >
             <ListFilter className="w-3.5 h-3.5" />
@@ -128,7 +164,7 @@ export default function Home() {
 
         {/* Clean Filter Chips Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">
-          <div className="flex items-center gap-1 text-slate-500 mr-1 shrink-0">
+          <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 mr-1 shrink-0">
             <Filter className="w-3.5 h-3.5" />
             <span className="font-mono text-[10px] hidden sm:inline">FILTER:</span>
           </div>
@@ -141,13 +177,13 @@ export default function Home() {
                 className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer ${
                   isActive
                     ? 'bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20'
-                    : 'bg-slate-900/80 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800'
+                    : 'bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-xs'
                 }`}
               >
                 <span>{filter.label}</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
-                    isActive ? 'bg-slate-950/30 text-slate-950' : 'bg-slate-800 text-slate-400'
+                    isActive ? 'bg-slate-950/30 text-slate-950' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                   }`}
                 >
                   {filter.count}
@@ -165,12 +201,12 @@ export default function Home() {
               mobileTab === 'map' ? 'block' : 'hidden lg:block'
             }`}
           >
-            <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-400 px-1">
+            <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-600 dark:text-slate-400 px-1">
               <span className="flex items-center gap-1.5 font-mono">
-                <Radio className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-400 animate-pulse" />
+                <Radio className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-500 dark:text-emerald-400 animate-pulse" />
                 TACTICAL MUNICIPAL GIS SENSOR GRID
               </span>
-              <span className="font-mono text-emerald-400 hidden sm:inline">
+              <span className="font-mono text-emerald-600 dark:text-emerald-400 hidden sm:inline">
                 PULSING PINS: CRITICAL HAZARD
               </span>
             </div>
@@ -199,6 +235,7 @@ export default function Home() {
                 setSelectedHazard(hazard);
                 setMobileTab('map');
               }}
+              onUpdateHazard={handleUpdateHazard}
             />
           </div>
         </div>

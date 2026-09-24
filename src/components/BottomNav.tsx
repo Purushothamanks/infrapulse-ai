@@ -19,13 +19,15 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   queueCount
 }) => {
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-lg border-t border-slate-800 px-4 py-2 safe-area-pb">
+    <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 px-4 py-2 safe-area-pb transition-colors">
       <div className="flex items-center justify-around max-w-md mx-auto relative">
         {/* Map Tab */}
         <button
           onClick={() => setCurrentTab('map')}
           className={`flex flex-col items-center gap-1 p-1.5 transition-colors cursor-pointer ${
-            currentTab === 'map' ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            currentTab === 'map'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
           }`}
         >
           <Map className="w-5 h-5" />
@@ -36,7 +38,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <button
           onClick={() => setCurrentTab('queue')}
           className={`flex flex-col items-center gap-1 p-1.5 transition-colors cursor-pointer relative ${
-            currentTab === 'queue' ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            currentTab === 'queue'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
           }`}
         >
           <div className="relative">
@@ -52,7 +56,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <div className="relative -top-5">
           <button
             onClick={onOpenReport}
-            className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/40 border-4 border-slate-950 active:scale-95 transition-transform cursor-pointer"
+            className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/40 border-4 border-white dark:border-slate-950 active:scale-95 transition-transform cursor-pointer"
             aria-label="Report Civic Hazard"
           >
             <Plus className="w-6 h-6 stroke-[3]" />
@@ -63,7 +67,9 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <button
           onClick={() => setCurrentTab('stats')}
           className={`flex flex-col items-center gap-1 p-1.5 transition-colors cursor-pointer ${
-            currentTab === 'stats' ? 'text-emerald-400 font-bold' : 'text-slate-400 hover:text-slate-200'
+            currentTab === 'stats'
+              ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
           }`}
         >
           <BarChart2 className="w-5 h-5" />
@@ -73,7 +79,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         {/* Mobile QR Share Tab */}
         <button
           onClick={onOpenMobileQr}
-          className="flex flex-col items-center gap-1 p-1.5 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+          className="flex flex-col items-center gap-1 p-1.5 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition-colors cursor-pointer"
         >
           <Smartphone className="w-5 h-5" />
           <span className="text-[10px]">Share</span>

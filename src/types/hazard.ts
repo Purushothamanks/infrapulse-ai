@@ -8,7 +8,28 @@ export type HazardType =
 
 export type UrgencyLevel = 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
 
-export type HazardStatus = 'DETECTED' | 'DISPATCHED' | 'IN_REPAIR' | 'RESOLVED';
+export type HazardProgress = 'Not started' | 'In progress' | 'Completed';
+
+export type HazardStatus =
+  | 'DETECTED'
+  | 'DISPATCHED'
+  | 'IN_REPAIR'
+  | 'RESOLVED'
+  | 'NOT_STARTED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED';
+
+export function getHazardProgress(status: HazardStatus): HazardProgress {
+  if (status === 'COMPLETED' || status === 'RESOLVED') return 'Completed';
+  if (status === 'IN_PROGRESS' || status === 'IN_REPAIR' || status === 'DISPATCHED') return 'In progress';
+  return 'Not started';
+}
+
+export function progressToStatus(progress: HazardProgress): HazardStatus {
+  if (progress === 'Completed') return 'COMPLETED';
+  if (progress === 'In progress') return 'IN_PROGRESS';
+  return 'NOT_STARTED';
+}
 
 export interface LocationCoords {
   lat: number;
