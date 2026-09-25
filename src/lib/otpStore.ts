@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import crypto from 'crypto';
 import { UserRole } from '@/types/auth';
 
@@ -10,16 +13,38 @@ interface StoredOtp {
   attempts: number;
 }
 
-// Global OTP store singleton to persist across Next.js API route invocations in development/production
-declare global {
-  var __mygovt_otp_store__: Map<string, StoredOtp> | undefined;
+const OTP_FILE = path.join(os.tmpdir(), 'mygovt_otp_store.json');
+
+function readStore(): Record<string, StoredOtp> {
+  try {
+    if (!fs.existsSync(OTP_FILE)) {
+      return {};
+    }
+    const data = fs.readFileSync(OTP_FILE, 'utf-8');
+    const parsed = JSON.parse(data) as Record<string, StoredOtp>;
+    const now = Date.now();
+    // Prune expired entries
+    const clean: Record<string, StoredOtp> = {};
+    for (const [key, val] of Object.entries(parsed)) {
+      if (val.expiresAt > now) {
+        clean[key] = val;
+      }
+    }
+    return clean;
+  } catch (err) {
+    console.error('[OTP-STORE] Error reading OTP store file:', err);
+    return {};
+  }
 }
 
-const otpStore: Map<string, StoredOtp> =
-  globalThis.__mygovt_otp_store__ || new Map<string, StoredOtp>();
-
-if (process.env.NODE_ENV !== 'production') {
-  globalThis.__mygovt_otp_store__ = otpStore;
+function writeStore(store: Record<string, StoredOtp>): void {
+  try {
+    const tempFile = `${OTP_FILE}.${Date.now()}.${Math.random().toString(36).substring(7)}.tmp`;
+    fs.writeFileSync(tempFile, JSON.stringify(store, null, 2), 'utf-8');
+    fs.renameSync(tempFile, OTP_FILE);
+  } catch (err) {
+    console.error('[OTP-STORE] Error writing OTP store file:', err);
+  }
 }
 
 export function generateSecureOtp(): string {
@@ -37,14 +62,16 @@ export function saveOtpRecord(
   const code = generateSecureOtp();
   const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-  otpStore.set(cleanEmail, {
+  const store = readStore();
+  store[cleanEmail] = {
     code,
     role,
     name,
     officialId,
     expiresAt,
     attempts: 0
-  });
+  };
+  writeStore(store);
 
   return { code, expiresAt };
 }
@@ -59,7 +86,8 @@ export function verifyOtpRecord(
 } {
   const cleanEmail = email.trim().toLowerCase();
   const cleanCode = code.trim();
-  const record = otpStore.get(cleanEmail);
+  const store = readStore();
+  const record = store[cleanEmail];
 
   if (!record) {
     return {
@@ -69,7 +97,8 @@ export function verifyOtpRecord(
   }
 
   if (Date.now() > record.expiresAt) {
-    otpStore.delete(cleanEmail);
+    delete store[cleanEmail];
+    writeStore(store);
     return {
       valid: false,
       error: 'Verification code has expired. Please request a fresh code.'
@@ -77,7 +106,8 @@ export function verifyOtpRecord(
   }
 
   if (record.attempts >= 5) {
-    otpStore.delete(cleanEmail);
+    delete store[cleanEmail];
+    writeStore(store);
     return {
       valid: false,
       error: 'Too many incorrect attempts. For security, please request a new verification code.'
@@ -86,6 +116,7 @@ export function verifyOtpRecord(
 
   if (record.code !== cleanCode) {
     record.attempts += 1;
+    writeStore(store);
     const remaining = 5 - record.attempts;
     return {
       valid: false,
@@ -95,7 +126,8 @@ export function verifyOtpRecord(
 
   // Success: extract details and remove OTP
   const { role, name, officialId } = record;
-  otpStore.delete(cleanEmail);
+  delete store[cleanEmail];
+  writeStore(store);
 
   return {
     valid: true,
@@ -104,7 +136,9 @@ export function verifyOtpRecord(
 }
 
 export function getPendingOtpCode(email: string): string | null {
-  const record = otpStore.get(email.trim().toLowerCase());
+  const cleanEmail = email.trim().toLowerCase();
+  const store = readStore();
+  const record = store[cleanEmail];
   if (!record || Date.now() > record.expiresAt) return null;
   return record.code;
 }
