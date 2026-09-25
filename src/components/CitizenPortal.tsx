@@ -202,6 +202,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          imageBase64: selectedImage,
           sampleId: selectedSampleId,
           description: description || `Civilian report: ${selectedType}`,
           lat: coords.lat,

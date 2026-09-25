@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     // 2. Generate and store secure OTP in memory
     const assignedGovtId = cleanRole === 'admin' ? AUTHORIZED_GOVT_ID : undefined;
-    const assignedName = name || (cleanRole === 'admin' ? 'Commissioner K. S. Purushothaman' : undefined);
+    const assignedName = name || (cleanRole === 'admin' ? 'K. S. Purushothaman' : undefined);
 
     const { code, expiresAt } = saveOtpRecord(
       cleanEmail,

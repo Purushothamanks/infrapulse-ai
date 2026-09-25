@@ -12,8 +12,11 @@ import {
   CheckCircle,
   Leaf,
   AlertTriangle,
-  UserCheck
+  UserCheck,
+  Printer,
+  MessageSquare
 } from 'lucide-react';
+import { OfficialWorkOrderPdfModal } from './OfficialWorkOrderPdfModal';
 
 interface HazardInspectorModalProps {
   hazard: HazardReport | null;
@@ -27,6 +30,7 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
   onUpdateHazard
 }) => {
   const [isGeneratingWorkOrder, setIsGeneratingWorkOrder] = useState(false);
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   if (!hazard) return null;
 
@@ -313,6 +317,30 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
                     ))}
                   </div>
                 </div>
+
+                {/* Official Work Order Action Buttons */}
+                <div className="flex items-center gap-2 pt-2 border-t border-cyan-200/60 dark:border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setIsPdfModalOpen(true)}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-emerald-500 dark:hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-sm"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>View / Print Official Docket (PDF)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleanPhone = hazard.workOrder!.contactNumber.replace(/[^\d]/g, '');
+                      const text = `🏛️ OFFICIAL MUNICIPAL WORK ORDER: ${hazard.workOrder!.orderId} for ${hazard.title} at ${hazard.location.address}. Allocated budget: ₹${hazard.workOrder!.estimatedBudget}. Please dispatch crew immediately.`;
+                      window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`, '_blank');
+                    }}
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-sm"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="hidden sm:inline">WhatsApp Dispatch</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-emerald-50 dark:from-slate-950 via-teal-50 dark:via-slate-900 to-emerald-50 dark:to-slate-950 border border-emerald-300 dark:border-emerald-500/20">
@@ -344,6 +372,13 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Official Printable Work Order PDF Modal */}
+      <OfficialWorkOrderPdfModal
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
+        hazard={hazard}
+      />
     </div>
   );
 };

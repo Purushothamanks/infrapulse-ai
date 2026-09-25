@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     if (role === 'admin') {
       user = {
         id: 'USR-ADM-001',
-        name: 'Commissioner K. S. Purushothaman',
+        name: 'K. S. Purushothaman',
         email: 'purushothamank.s799@gmail.com',
         role: 'admin',
         officialId: verifiedOfficialId || 'TN-SAMPLE-2026',

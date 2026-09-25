@@ -29,6 +29,7 @@ export default function Home() {
   const [isMobileQrOpen, setIsMobileQrOpen] = useState<boolean>(false);
   const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
+  const [liveIncomingAlert, setLiveIncomingAlert] = useState<HazardReport | null>(null);
 
   const [publicUrl, setPublicUrl] = useState<string>('https://3.6.172.250.nip.io');
   const localWifiUrl = 'http://10.121.226.91:3000';
@@ -39,25 +40,46 @@ export default function Home() {
     }
   }, []);
 
-  // Load hazards from localStorage on mount so changes between admin & citizen sync seamlessly
+  // Real-Time Cross-Device Incident Sync with /api/hazards
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('mygovtai_hazards') || localStorage.getItem('infrapulse_hazards');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setHazards(parsed);
-        }
-      }
-    } catch {}
-  }, []);
+    let isMounted = true;
 
-  const saveHazards = (newHazards: HazardReport[]) => {
-    setHazards(newHazards);
-    try {
-      localStorage.setItem('mygovtai_hazards', JSON.stringify(newHazards));
-    } catch {}
-  };
+    const syncHazards = async () => {
+      try {
+        const res = await fetch('/api/hazards');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.hazards) && isMounted) {
+            setHazards((prev) => {
+              // Check if a new hazard arrived from another device
+              if (prev.length > 0 && data.hazards.length > prev.length) {
+                const newest = data.hazards[0];
+                if (newest && !prev.some((h) => h.id === newest.id)) {
+                  setLiveIncomingAlert(newest);
+                  setSelectedHazard(newest);
+                  setTimeout(() => {
+                    if (isMounted) setLiveIncomingAlert(null);
+                  }, 8000);
+                }
+              }
+              return data.hazards;
+            });
+          }
+        }
+      } catch (_) {}
+    };
+
+    // Initial fetch
+    syncHazards();
+
+    // 3-second live sync interval across all phones & laptops
+    const interval = setInterval(syncHazards, 3000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Filter hazards
   const filteredHazards = hazards.filter((h) => {
@@ -66,24 +88,52 @@ export default function Home() {
     return h.type === activeFilter;
   });
 
-  const handleAddHazard = (newReport: HazardReport) => {
+  const handleAddHazard = async (newReport: HazardReport) => {
     const updated = [newReport, ...hazards];
-    saveHazards(updated);
+    setHazards(updated);
     setSelectedHazard(newReport);
     setMobileTab('map');
+
+    try {
+      await fetch('/api/hazards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hazard: newReport })
+      });
+    } catch (e) {
+      console.error('Failed to sync new hazard to server:', e);
+    }
   };
 
-  const handleUpdateHazard = (updated: HazardReport) => {
+  const handleUpdateHazard = async (updated: HazardReport) => {
     const next = hazards.map((h) => (h.id === updated.id ? updated : h));
-    saveHazards(next);
+    setHazards(next);
     setSelectedHazard(updated);
+
+    try {
+      await fetch('/api/hazards', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hazard: updated })
+      });
+    } catch (e) {
+      console.error('Failed to sync hazard update to server:', e);
+    }
   };
 
-  const handleDeleteHazard = (hazardId: string) => {
+  const handleDeleteHazard = async (hazardId: string) => {
     const next = hazards.filter((h) => h.id !== hazardId);
-    saveHazards(next);
+    setHazards(next);
     if (selectedHazard?.id === hazardId) {
       setSelectedHazard(null);
+    }
+
+    try {
+      await fetch(`/api/hazards?id=${hazardId}`, {
+        method: 'DELETE'
+      });
+    } catch (e) {
+      console.error('Failed to delete hazard on server:', e);
     }
   };
 
@@ -137,6 +187,33 @@ export default function Home() {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4">
+        {/* Real-Time Cross-Device Incident Notification Banner */}
+        {liveIncomingAlert && (
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 text-white shadow-xl shadow-red-500/25 flex items-center justify-between gap-3 animate-in slide-in-from-top duration-300 border border-white/20">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="p-2 rounded-xl bg-white/20 text-lg animate-bounce">🚨</span>
+              <div className="min-w-0">
+                <div className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider text-rose-100 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  Live Incident Synced from Mobile Device
+                </div>
+                <div className="text-xs sm:text-sm font-bold truncate">
+                  {liveIncomingAlert.title} • {liveIncomingAlert.location.ward}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setSelectedHazard(liveIncomingAlert);
+                setInspectingHazard(liveIncomingAlert);
+                setLiveIncomingAlert(null);
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-white text-slate-950 font-bold text-xs hover:bg-slate-100 transition-colors shadow-md cursor-pointer whitespace-nowrap shrink-0"
+            >
+              Inspect Work Order
+            </button>
+          </div>
+        )}
 
         {/* Clean Filter Chips Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs">

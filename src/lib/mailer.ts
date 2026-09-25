@@ -46,7 +46,7 @@ export async function sendOtpEmail({
 
     const isOfficial = role === 'admin';
     const roleBadgeText = isOfficial ? 'Official Municipal Administrator' : 'Civilian Citizen Access';
-    const recipientTitle = recipientName || (isOfficial ? 'Commissioner K. S. Purushothaman' : 'Citizen');
+    const recipientTitle = recipientName || (isOfficial ? 'K. S. Purushothaman' : 'Citizen');
 
     const html = `
 <!DOCTYPE html>
