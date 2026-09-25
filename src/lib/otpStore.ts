@@ -48,7 +48,6 @@ function writeStore(store: Record<string, StoredOtp>): void {
 }
 
 export function generateSecureOtp(): string {
-  // Generate random 6-digit OTP
   return crypto.randomInt(100000, 999999).toString();
 }
 
@@ -78,7 +77,8 @@ export function saveOtpRecord(
 
 export function verifyOtpRecord(
   email: string,
-  code: string
+  code: string,
+  officialId?: string
 ): {
   valid: boolean;
   error?: string;
@@ -86,6 +86,7 @@ export function verifyOtpRecord(
 } {
   const cleanEmail = email.trim().toLowerCase();
   const cleanCode = code.trim();
+  const cleanOfficialId = (officialId || '').trim();
   const store = readStore();
   const record = store[cleanEmail];
 
@@ -114,6 +115,24 @@ export function verifyOtpRecord(
     };
   }
 
+  // If Admin role, check the Government Official ID
+  if (record.role === 'admin') {
+    if (!cleanOfficialId) {
+      return {
+        valid: false,
+        error: 'Government Official ID is required. Please enter the ID received in your email.'
+      };
+    }
+    if (cleanOfficialId.toUpperCase() !== (record.officialId || '').toUpperCase()) {
+      record.attempts += 1;
+      writeStore(store);
+      return {
+        valid: false,
+        error: 'Invalid Government Official ID. Please check the ID provided in your verification email.'
+      };
+    }
+  }
+
   if (record.code !== cleanCode) {
     record.attempts += 1;
     writeStore(store);
@@ -125,13 +144,13 @@ export function verifyOtpRecord(
   }
 
   // Success: extract details and remove OTP
-  const { role, name, officialId } = record;
+  const { role, name, officialId: storedOfficialId } = record;
   delete store[cleanEmail];
   writeStore(store);
 
   return {
     valid: true,
-    data: { role, name, officialId }
+    data: { role, name, officialId: storedOfficialId }
   };
 }
 

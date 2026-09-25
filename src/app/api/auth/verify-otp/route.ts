@@ -5,7 +5,7 @@ import { User } from '@/types/auth';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, code, name } = body;
+    const { email, code, officialId, name } = body;
 
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanCode = (code || '').trim();
@@ -17,16 +17,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const verification = verifyOtpRecord(cleanEmail, cleanCode);
+    const verification = verifyOtpRecord(cleanEmail, cleanCode, officialId);
 
     if (!verification.valid || !verification.data) {
       return NextResponse.json(
-        { success: false, error: verification.error || 'Invalid verification code.' },
+        { success: false, error: verification.error || 'Invalid verification credentials.' },
         { status: 400 }
       );
     }
 
-    const { role, officialId } = verification.data;
+    const { role, officialId: verifiedOfficialId } = verification.data;
 
     let user: User;
 
@@ -36,9 +36,9 @@ export async function POST(request: Request) {
         name: 'Commissioner K. S. Purushothaman',
         email: 'purushothamank.s799@gmail.com',
         role: 'admin',
-        officialId: 'TN-SAMPLE-2026',
+        officialId: verifiedOfficialId || 'TN-SAMPLE-2026',
         verified: true,
-        department: 'Tamil Nadu Municipal Administration & Water Supply'
+        department: 'Tamil Nadu Municipal Administration & Urban Water Supply'
       };
     } else {
       user = {

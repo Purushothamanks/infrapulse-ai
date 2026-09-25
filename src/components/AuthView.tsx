@@ -16,11 +16,11 @@ import {
   Loader2,
   RefreshCw,
   ArrowLeft,
-  Lock
+  Lock,
+  Inbox
 } from 'lucide-react';
 
 const REQUIRED_ADMIN_EMAIL = 'purushothamank.s799@gmail.com';
-const REQUIRED_GOVT_ID = 'TN-SAMPLE-2026';
 
 export const AuthView: React.FC = () => {
   const { requestOtp, verifyOtpAndLogin } = useAuth();
@@ -28,10 +28,10 @@ export const AuthView: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
   const [step, setStep] = useState<'input' | 'verify'>('input');
 
-  // Form Fields
+  // Form Fields - All start completely blank so users enter manually
   const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>(REQUIRED_ADMIN_EMAIL);
-  const [officialId, setOfficialId] = useState<string>(REQUIRED_GOVT_ID);
+  const [email, setEmail] = useState<string>('');
+  const [officialId, setOfficialId] = useState<string>('');
   const [otpCode, setOtpCode] = useState<string>('');
 
   // Status
@@ -57,16 +57,9 @@ export const AuthView: React.FC = () => {
     setSuccessMessage('');
     setDevCodeHint(null);
     setOtpCode('');
-
-    if (role === 'admin') {
-      setEmail(REQUIRED_ADMIN_EMAIL);
-      setOfficialId(REQUIRED_GOVT_ID);
-      setName('K. S. Purushothaman');
-    } else {
-      setEmail('');
-      setOfficialId('');
-      setName('');
-    }
+    setEmail('');
+    setName('');
+    setOfficialId('');
   };
 
   const handleRequestOtp = async (e: React.FormEvent) => {
@@ -80,11 +73,7 @@ export const AuthView: React.FC = () => {
     // Client-side quick validation for Admin
     if (selectedRole === 'admin') {
       if (cleanEmail !== REQUIRED_ADMIN_EMAIL.toLowerCase()) {
-        setErrorMessage(`Unauthorized: Only the designated municipal administrator (${REQUIRED_ADMIN_EMAIL}) is permitted to access the Official Admin Command Center.`);
-        return;
-      }
-      if (officialId.trim() !== REQUIRED_GOVT_ID) {
-        setErrorMessage(`Invalid Government Official ID. Authorized ID is ${REQUIRED_GOVT_ID}.`);
+        setErrorMessage(`Unauthorized: Only the designated municipal administrator email (${REQUIRED_ADMIN_EMAIL}) is permitted to access the Official Command Center.`);
         return;
       }
     } else {
@@ -97,18 +86,21 @@ export const AuthView: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await requestOtp(cleanEmail, selectedRole, officialId.trim(), name.trim());
+      const res = await requestOtp(cleanEmail, selectedRole, name.trim());
 
       if (res.success) {
         setStep('verify');
-        setSuccessMessage(res.message || `Verification code dispatched to ${cleanEmail}`);
+        setSuccessMessage(res.message || `Verification email dispatched to ${cleanEmail}`);
         if (res.devCode) {
           setDevCodeHint(res.devCode);
-          setOtpCode(res.devCode); // Auto-fill in dev/test mode for rapid UX
+          setOtpCode(res.devCode);
+          if (res.devOfficialId) {
+            setOfficialId(res.devOfficialId);
+          }
         }
         setResendCooldown(30);
       } else {
-        setErrorMessage(res.error || 'Failed to dispatch verification code.');
+        setErrorMessage(res.error || 'Failed to dispatch verification email.');
       }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Unexpected connection error.');
@@ -127,15 +119,25 @@ export const AuthView: React.FC = () => {
       return;
     }
 
+    if (selectedRole === 'admin' && !officialId.trim()) {
+      setErrorMessage('Please enter the Government Official ID provided in your verification email.');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const res = await verifyOtpAndLogin(email.trim().toLowerCase(), otpCode.trim(), name.trim());
+      const res = await verifyOtpAndLogin(
+        email.trim().toLowerCase(),
+        otpCode.trim(),
+        selectedRole === 'admin' ? officialId.trim() : undefined,
+        name.trim()
+      );
 
       if (res.success) {
-        setSuccessMessage('Email verified successfully! Logging you in...');
+        setSuccessMessage('Credentials verified successfully! Logging you in...');
       } else {
-        setErrorMessage(res.error || 'Invalid or expired verification code.');
+        setErrorMessage(res.error || 'Invalid verification credentials. Please check your OTP and Govt ID.');
       }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Verification failed. Please try again.');
@@ -204,12 +206,16 @@ export const AuthView: React.FC = () => {
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                {selectedRole === 'admin' ? 'Municipal Official Sign-In' : 'Civilian Citizen Sign-In'}
+                {selectedRole === 'admin' ? 'Municipal Official Access' : 'Civilian Citizen Access'}
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 {step === 'input'
-                  ? 'Real-time two-factor email verification'
-                  : 'Enter the 6-digit OTP code sent to your inbox'}
+                  ? selectedRole === 'admin'
+                    ? 'Enter official email to receive OTP & Govt ID'
+                    : 'Enter your details to receive verification code'
+                  : selectedRole === 'admin'
+                  ? 'Enter the OTP and Govt Official ID from your email'
+                  : 'Enter the 6-digit OTP code sent to your email'}
               </p>
             </div>
             <span
@@ -238,45 +244,46 @@ export const AuthView: React.FC = () => {
             </div>
           )}
 
-          {/* STEP 1: EMAIL & CREDENTIALS INPUT */}
+          {/* STEP 1: EMAIL & DETAILS INPUT */}
           {step === 'input' ? (
             <form onSubmit={handleRequestOtp} className="space-y-4">
-              {/* If Admin Role, show restricted banner */}
-              {selectedRole === 'admin' ? (
+              {/* Admin Note */}
+              {selectedRole === 'admin' && (
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-1 text-xs">
                   <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
                     <Lock className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Authorized Administration Gateway</span>
+                    <span>Official Authorization Required</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Restricted to designated Municipal Administrator email and official Government ID credentials.
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Enter your authorized official email. The system will dispatch your <strong>One-Time Security OTP</strong> and <strong>Government Official ID</strong> directly to your inbox.
                   </p>
                 </div>
-              ) : null}
+              )}
 
-              {/* Name Field (Optional for Citizen) */}
+              {/* Citizen Name Field */}
               {selectedRole === 'citizen' && (
                 <div>
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Your Full Name <span className="text-slate-400 font-normal">(Optional)</span>
+                    Your Full Name <span className="text-red-500">*</span>
                   </label>
                   <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
                     <UserIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                     <input
                       type="text"
+                      required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Arjun Verma"
+                      placeholder="Enter your full name (e.g. Arjun Verma)"
                       className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
                     />
                   </div>
                 </div>
               )}
 
-              {/* Email Address */}
+              {/* Email Address Field (Manually entered) */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  {selectedRole === 'admin' ? 'Authorized Admin Email' : 'Email Address'}
+                  {selectedRole === 'admin' ? 'Authorized Municipal Email' : 'Email Address'} <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
                   <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" />
@@ -285,43 +292,20 @@ export const AuthView: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={selectedRole === 'admin' ? REQUIRED_ADMIN_EMAIL : 'your.email@domain.com'}
+                    placeholder={selectedRole === 'admin' ? 'purushothamank.s799@gmail.com' : 'your.email@example.com'}
                     className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
                   />
                 </div>
                 {selectedRole === 'admin' && (
                   <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block font-mono">
-                    Must match: {REQUIRED_ADMIN_EMAIL}
+                    Authorized account: {REQUIRED_ADMIN_EMAIL}
                   </span>
                 )}
               </div>
 
-              {/* Official Govt ID for Admin */}
-              {selectedRole === 'admin' && (
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                    Government Official ID
-                  </label>
-                  <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
-                    <Fingerprint className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                    <input
-                      type="text"
-                      required
-                      value={officialId}
-                      onChange={(e) => setOfficialId(e.target.value)}
-                      placeholder="e.g. TN-SAMPLE-2026"
-                      className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200 font-mono"
-                    />
-                  </div>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block font-mono">
-                    Must match: {REQUIRED_GOVT_ID}
-                  </span>
-                </div>
-              )}
-
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || !email.trim() || (selectedRole === 'citizen' && !name.trim())}
                 className="w-full py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isLoading ? (
@@ -332,20 +316,25 @@ export const AuthView: React.FC = () => {
                 ) : (
                   <>
                     <Mail className="w-4 h-4" />
-                    <span>Send Verification Code to Email</span>
+                    <span>
+                      {selectedRole === 'admin'
+                        ? 'Send OTP & Govt ID to Email'
+                        : 'Send Verification Code to Email'}
+                    </span>
                   </>
                 )}
               </button>
             </form>
           ) : (
-            /* STEP 2: OTP VERIFICATION */
+            /* STEP 2: CREDENTIALS & OTP VERIFICATION */
             <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
-                <div className="text-slate-600 dark:text-slate-300 text-[11px]">
-                  Verification email sent to:
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+                <div className="text-slate-600 dark:text-slate-300 text-[11px] flex items-center gap-1.5">
+                  <Inbox className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Verification email sent to:</span>
                 </div>
                 <div className="font-mono font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                  <span>{email}</span>
+                  <span className="truncate">{email}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -353,11 +342,16 @@ export const AuthView: React.FC = () => {
                       setErrorMessage('');
                       setSuccessMessage('');
                     }}
-                    className="text-emerald-600 dark:text-emerald-400 hover:underline text-[11px] font-sans flex items-center gap-1 cursor-pointer"
+                    className="text-emerald-600 dark:text-emerald-400 hover:underline text-[11px] font-sans flex items-center gap-1 cursor-pointer shrink-0 ml-2"
                   >
                     <ArrowLeft className="w-3 h-3" /> Change
                   </button>
                 </div>
+                {selectedRole === 'admin' && (
+                  <p className="text-[10px] text-emerald-700 dark:text-emerald-400/90 font-medium">
+                    📬 Check your inbox for both your <strong>6-digit OTP</strong> and your <strong>Government Official ID</strong>.
+                  </p>
+                )}
               </div>
 
               {/* Dev/Local Testing Banner if SMTP not configured */}
@@ -365,20 +359,18 @@ export const AuthView: React.FC = () => {
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1">
                   <div className="font-bold flex items-center gap-1.5">
                     <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Auto-Generated OTP (Live Test Mode):</span>
+                    <span>Auto-Generated Credentials (Test Mode):</span>
                   </div>
-                  <div className="text-xl font-mono font-black tracking-widest text-amber-900 dark:text-amber-100 bg-amber-500/20 px-3 py-1 rounded-lg inline-block">
-                    {devCodeHint}
+                  <div className="text-sm font-mono text-amber-900 dark:text-amber-100">
+                    OTP: <span className="font-bold">{devCodeHint}</span>
                   </div>
-                  <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
-                    Live SMTP: Add GMAIL_USER and GMAIL_APP_PASS in .env.local to dispatch real emails to any inbox.
-                  </p>
                 </div>
               )}
 
+              {/* 6-Digit OTP Code Input */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Enter 6-Digit Verification Code
+                  Enter 6-Digit Verification Code (OTP) <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
                   <KeyRound className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -395,20 +387,47 @@ export const AuthView: React.FC = () => {
                 </div>
               </div>
 
+              {/* Government Official ID Input (Only for Admin - from email) */}
+              {selectedRole === 'admin' && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Government Official ID Number <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
+                    <Fingerprint className="w-5 h-5 text-sky-500 shrink-0" />
+                    <input
+                      type="text"
+                      required
+                      value={officialId}
+                      onChange={(e) => setOfficialId(e.target.value)}
+                      placeholder="Enter Govt ID from email (e.g. TN-SAMPLE-2026)"
+                      className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100 font-mono uppercase text-xs"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
+                    Copy and paste the Government Official ID provided in your verification email.
+                  </span>
+                </div>
+              )}
+
               <button
                 type="submit"
-                disabled={isLoading || otpCode.length < 6}
+                disabled={isLoading || otpCode.length < 6 || (selectedRole === 'admin' && !officialId.trim())}
                 className="w-full py-3 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Verifying Code...</span>
+                    <span>Verifying Credentials...</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Verify & Enter {selectedRole === 'admin' ? 'Command Center' : 'Citizen Desk'}</span>
+                    <span>
+                      {selectedRole === 'admin'
+                        ? 'Verify Credentials & Access Command Center'
+                        : 'Verify OTP & Access Citizen Portal'}
+                    </span>
                   </>
                 )}
               </button>
@@ -423,7 +442,7 @@ export const AuthView: React.FC = () => {
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
                   <span>
-                    {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend Code'}
+                    {resendCooldown > 0 ? `Resend email in ${resendCooldown}s` : 'Resend Email'}
                   </span>
                 </button>
                 <button
@@ -436,7 +455,7 @@ export const AuthView: React.FC = () => {
                   }}
                   className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
                 >
-                  Back to login
+                  Back to start
                 </button>
               </div>
             </form>
@@ -445,9 +464,9 @@ export const AuthView: React.FC = () => {
 
         {/* Security / Compliance Tag */}
         <div className="text-center text-[11px] text-slate-400 dark:text-slate-500 font-mono flex items-center justify-center gap-2">
-          <span>🔒 End-to-End Encrypted</span>
+          <span>🔒 Two-Factor Verified Access</span>
           <span>•</span>
-          <span>Government of Tamil Nadu Standards</span>
+          <span>Government of Tamil Nadu</span>
         </div>
       </div>
     </div>

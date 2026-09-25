@@ -9,12 +9,12 @@ interface AuthContextType {
   requestOtp: (
     email: string,
     role: UserRole,
-    officialId?: string,
     name?: string
-  ) => Promise<{ success: boolean; emailSent?: boolean; message?: string; devCode?: string; error?: string }>;
+  ) => Promise<{ success: boolean; emailSent?: boolean; message?: string; devCode?: string; devOfficialId?: string; error?: string }>;
   verifyOtpAndLogin: (
     email: string,
     code: string,
+    officialId?: string,
     name?: string
   ) => Promise<{ success: boolean; user?: User; error?: string }>;
   logout: () => void;
@@ -43,14 +43,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const requestOtp = async (
     email: string,
     role: UserRole,
-    officialId?: string,
     name?: string
-  ): Promise<{ success: boolean; emailSent?: boolean; message?: string; devCode?: string; error?: string }> => {
+  ): Promise<{ success: boolean; emailSent?: boolean; message?: string; devCode?: string; devOfficialId?: string; error?: string }> => {
     try {
       const res = await fetch('/api/auth/send-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role, officialId, name })
+        body: JSON.stringify({ email, role, name })
       });
 
       const data = await res.json();
@@ -65,7 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         success: true,
         emailSent: data.emailSent,
         message: data.message,
-        devCode: data.devCode
+        devCode: data.devCode,
+        devOfficialId: data.devOfficialId
       };
     } catch (err: any) {
       return {
@@ -78,20 +78,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const verifyOtpAndLogin = async (
     email: string,
     code: string,
+    officialId?: string,
     name?: string
   ): Promise<{ success: boolean; user?: User; error?: string }> => {
     try {
       const res = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code, name })
+        body: JSON.stringify({ email, code, officialId, name })
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
         return {
           success: false,
-          error: data.error || 'Invalid verification code.'
+          error: data.error || 'Invalid verification credentials.'
         };
       }
 
