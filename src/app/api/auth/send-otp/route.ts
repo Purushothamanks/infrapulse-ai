@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: `Access Denied: Only authorized municipal official (${AUTHORIZED_ADMIN_EMAIL}) is permitted to access the Official Command Center.`
+            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue , reach : purushothamank.s799@gmail.com'
           },
           { status: 403 }
         );

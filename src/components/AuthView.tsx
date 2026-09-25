@@ -73,7 +73,7 @@ export const AuthView: React.FC = () => {
     // Client-side quick validation for Admin
     if (selectedRole === 'admin') {
       if (cleanEmail !== REQUIRED_ADMIN_EMAIL.toLowerCase()) {
-        setErrorMessage(`Unauthorized: Only the designated municipal administrator email (${REQUIRED_ADMIN_EMAIL}) is permitted to access the Official Command Center.`);
+        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to access the Official Command Center. For any issue , reach : purushothamank.s799@gmail.com');
         return;
       }
     } else {
@@ -292,13 +292,13 @@ export const AuthView: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={selectedRole === 'admin' ? 'purushothamank.s799@gmail.com' : 'your.email@example.com'}
+                    placeholder={selectedRole === 'admin' ? 'officer.email@domain.gov' : 'your.email@example.com'}
                     className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
                   />
                 </div>
                 {selectedRole === 'admin' && (
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block font-mono">
-                    Authorized account: {REQUIRED_ADMIN_EMAIL}
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
+                    For any issue , reach : <a href="mailto:purushothamank.s799@gmail.com" className="text-emerald-600 dark:text-emerald-400 hover:underline font-mono">purushothamank.s799@gmail.com</a>
                   </span>
                 )}
               </div>
