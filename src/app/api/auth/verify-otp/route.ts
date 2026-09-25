@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyOtpRecord } from '@/lib/otpStore';
+import { registerUser } from '@/lib/userStore';
 import { User } from '@/types/auth';
 
 export async function POST(request: Request) {
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
     let user: User;
 
     if (role === 'admin') {
-      user = {
+      user = registerUser({
         id: 'USR-ADM-001',
         name: 'K. S. Purushothaman',
         email: 'purushothamank.s799@gmail.com',
@@ -39,21 +40,24 @@ export async function POST(request: Request) {
         officialId: verifiedOfficialId || 'TN-SAMPLE-2026',
         verified: true,
         department: 'Tamil Nadu Municipal Administration & Urban Water Supply'
-      };
+      });
     } else {
-      user = {
+      const citizenRawName = (name || verification.data.name || cleanEmail.split('@')[0].replace(/[._]/g, ' '))
+        .replace(/commissioner\s*/gi, '')
+        .trim();
+      user = registerUser({
         id: `USR-CIT-${Math.floor(1000 + Math.random() * 9000)}`,
-        name: name || verification.data.name || cleanEmail.split('@')[0].replace(/[._]/g, ' '),
+        name: citizenRawName || 'Civilian Citizen',
         email: cleanEmail,
         role: 'citizen',
         verified: true
-      };
+      });
     }
 
     return NextResponse.json({
       success: true,
       user,
-      message: 'Email successfully verified! Welcome to MyGovt AI Hub.'
+      message: 'Email successfully verified! Your account is registered.'
     });
   } catch (error: any) {
     console.error('Error in verify-otp API:', error);

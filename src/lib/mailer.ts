@@ -174,3 +174,154 @@ export async function sendOtpEmail({
     };
   }
 }
+
+export interface GrievanceStatusEmailParams {
+  toEmail: string;
+  hazardId?: string;
+  citizenName?: string;
+  hazardTitle: string;
+  newStatus: string;
+  locationAddress: string;
+  ward: string;
+  contractorTeam?: string;
+  scheduledDispatch?: string;
+  workOrderId?: string;
+}
+
+export async function sendGrievanceStatusEmail({
+  toEmail,
+  hazardId,
+  citizenName,
+  hazardTitle,
+  newStatus,
+  locationAddress,
+  ward,
+  contractorTeam,
+  scheduledDispatch,
+  workOrderId
+}: GrievanceStatusEmailParams): Promise<{ success: boolean; error?: string }> {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS;
+  const from = process.env.SMTP_FROM || `"MyGovt AI Hub" <${user || 'purushothamank.s799@gmail.com'}>`;
+
+  if (!toEmail || !toEmail.includes('@')) {
+    return { success: false, error: 'Invalid recipient email' };
+  }
+
+  if (!user || !pass) {
+    console.warn('[STATUS-EMAIL-WARN] SMTP not configured. Skipping status email dispatch.');
+    return { success: false, error: 'SMTP_NOT_CONFIGURED' };
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass }
+    });
+
+    const isCompleted = newStatus.toLowerCase().includes('complete') || newStatus.toLowerCase().includes('resolve');
+    const statusBadgeColor = isCompleted ? '#10b981' : '#f59e0b';
+    const statusText = isCompleted ? 'COMPLETED & RESOLVED' : 'IN PROGRESS / DISPATCHED';
+    const subject = isCompleted
+      ? `🏛️ [Resolved] Your civic grievance for "${hazardTitle}" has been Completed`
+      : `🏛️ [In Progress] Repair crews mobilized for "${hazardTitle}"`;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Civic Grievance Status Update</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0f172a; margin: 0; padding: 24px; color: #f8fafc; }
+    .card { max-width: 520px; margin: 0 auto; background: #1e293b; border: 1px solid #334155; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+    .header { background: linear-gradient(135deg, #059669, #0d9488); padding: 24px; text-align: center; }
+    .brand { font-size: 18px; font-weight: 800; color: #ffffff; margin: 0; }
+    .subbrand { font-size: 11px; color: #ccfbf1; margin-top: 4px; font-family: monospace; }
+    .body { padding: 28px 24px; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-size: 11px; font-weight: 800; background: ${statusBadgeColor}; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .greeting { font-size: 15px; font-weight: 700; color: #f1f5f9; margin-bottom: 8px; }
+    .desc { font-size: 13px; line-height: 1.6; color: #cbd5e1; margin-bottom: 20px; }
+    .status-card { background: #0f172a; border: 1px solid #334155; border-radius: 14px; padding: 16px; margin: 18px 0; }
+    .info-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .info-table td { padding: 8px 10px; border-bottom: 1px solid #334155; }
+    .info-table td:first-child { color: #94a3b8; font-weight: 600; width: 35%; }
+    .info-table td:last-child { color: #f1f5f9; }
+    .footer { padding: 16px 24px; background: #0f172a; border-top: 1px solid #334155; text-align: center; font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1 class="brand">🏛️ MyGovt AI Hub</h1>
+      <div class="subbrand">Civic Grievance Real-Time Tracking Notification</div>
+    </div>
+    <div class="body">
+      <div class="badge">${statusText}</div>
+      <div class="greeting">Hello, ${citizenName || 'Civic Scout'}</div>
+      <p class="desc">
+        ${isCompleted
+          ? `Great news! The municipal maintenance fleet has successfully completed the repair works for your reported grievance: <strong>${hazardTitle}</strong>.`
+          : `The municipal administration has reviewed your report for <strong>${hazardTitle}</strong> and marked it as <strong>IN PROGRESS</strong>. Repair operations are actively underway.`
+        }
+      </p>
+
+      <div class="status-card">
+        <table class="info-table">
+          ${hazardId ? `<tr><td>Grievance ID</td><td style="font-family: monospace; font-weight: bold; color: #38bdf8;">${hazardId}</td></tr>` : ''}
+          <tr>
+            <td>Incident Title</td>
+            <td><strong>${hazardTitle}</strong></td>
+          </tr>
+          <tr>
+            <td>Location</td>
+            <td>${locationAddress} (${ward})</td>
+          </tr>
+          <tr>
+            <td>Updated Status</td>
+            <td><strong style="color: ${statusBadgeColor};">${statusText}</strong></td>
+          </tr>
+          ${workOrderId ? `<tr><td>Official Work Order</td><td style="font-family: monospace;">${workOrderId}</td></tr>` : ''}
+          ${contractorTeam ? `<tr><td>Assigned Contractor</td><td>${contractorTeam}</td></tr>` : ''}
+          ${scheduledDispatch ? `<tr><td>SLA Dispatch Window</td><td>${scheduledDispatch}</td></tr>` : ''}
+          <tr>
+            <td>Authorized Officer</td>
+            <td>K. S. Purushothaman (Municipal Administration)</td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="font-size: 11px; color: #94a3b8; line-height: 1.5;">
+        ${isCompleted
+          ? '🌟 Thank you for keeping our city safe and sustainable by reporting urban defects!'
+          : '📡 You will receive another notification once the field crew certifies completion.'
+        }
+      </p>
+    </div>
+    <div class="footer">
+      MyGovt AI Hub • Tamil Nadu Municipal Administration & Urban Water Supply
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    await transporter.sendMail({
+      from,
+      to: toEmail,
+      subject,
+      text: `Grievance Update: Your reported issue for "${hazardTitle}" is now ${statusText}.`,
+      html
+    });
+
+    console.log(`[STATUS-EMAIL-SUCCESS] Grievance status update email sent to ${toEmail} for ${hazardTitle}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error(`[STATUS-EMAIL-ERROR] Failed to send status email to ${toEmail}:`, err?.message || err);
+    return { success: false, error: err?.message };
+  }
+}

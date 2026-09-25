@@ -6,6 +6,10 @@ import { User, UserRole } from '@/types/auth';
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  signIn: (
+    email: string,
+    role?: UserRole
+  ) => Promise<{ success: boolean; user?: User; notRegistered?: boolean; error?: string }>;
   requestOtp: (
     email: string,
     role: UserRole,
@@ -27,12 +31,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Restore session from localStorage
+    // Restore session from localStorage and sanitize any old commissioner prefix
     try {
       const stored = localStorage.getItem('mygovtai_session_user') || localStorage.getItem('infrapulse_session_user');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.email) {
+          if (parsed.name) {
+            parsed.name = parsed.name.replace(/commissioner\s*/gi, '').trim();
+          }
+          try {
+            localStorage.setItem('mygovtai_session_user', JSON.stringify(parsed));
+          } catch (_) {}
           setUser(parsed);
         }
       }
@@ -75,6 +85,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const signIn = async (
+    email: string,
+    role?: UserRole
+  ): Promise<{ success: boolean; user?: User; notRegistered?: boolean; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          notRegistered: data.notRegistered,
+          error: data.error || 'Failed to sign in.'
+        };
+      }
+
+      const authenticatedUser = data.user as User;
+      if (authenticatedUser.name) {
+        authenticatedUser.name = authenticatedUser.name.replace(/commissioner\s*/gi, '').trim();
+      }
+      setUser(authenticatedUser);
+      try {
+        localStorage.setItem('mygovtai_session_user', JSON.stringify(authenticatedUser));
+      } catch (_) {}
+
+      return { success: true, user: authenticatedUser };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Failed to sign in. Please check network connection.'
+      };
+    }
+  };
+
   const verifyOtpAndLogin = async (
     email: string,
     code: string,
@@ -97,6 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const authenticatedUser = data.user as User;
+      if (authenticatedUser.name) {
+        authenticatedUser.name = authenticatedUser.name.replace(/commissioner\s*/gi, '').trim();
+      }
       setUser(authenticatedUser);
       try {
         localStorage.setItem('mygovtai_session_user', JSON.stringify(authenticatedUser));
@@ -124,6 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         isLoading,
+        signIn,
         requestOtp,
         verifyOtpAndLogin,
         logout

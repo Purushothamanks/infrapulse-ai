@@ -229,7 +229,8 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           },
           imageUrl: selectedImage,
           reportedAt: 'Just now',
-          citizenName: user?.name || 'Registered Civilian',
+          citizenName: (user?.name || 'Registered Civilian').replace(/commissioner\s*/gi, '').trim(),
+          citizenEmail: user?.email || 'citizen@gmail.com',
           upvotes: 1,
           aiAnalysis: data.analysis
         };

@@ -19,6 +19,7 @@ export const initialHazards: HazardReport[] = [
     imageUrl: '/sample-hazards/1_severe_pothole_crater.png',
     reportedAt: '12 mins ago',
     citizenName: 'Arjun Verma (Citizen Scout)',
+    citizenEmail: 'purushothamank.s799@gmail.com',
     upvotes: 24,
     aiAnalysis: {
       confidence: 96.8,
@@ -70,6 +71,7 @@ export const initialHazards: HazardReport[] = [
     imageUrl: '/sample-hazards/2_water_main_rupture.png',
     reportedAt: '35 mins ago',
     citizenName: 'Priya Sundaram',
+    citizenEmail: 'purushothamank.s799@gmail.com',
     upvotes: 41,
     aiAnalysis: {
       confidence: 98.2,
@@ -120,6 +122,7 @@ export const initialHazards: HazardReport[] = [
     imageUrl: '/sample-hazards/3_structural_flyover_crack.png',
     reportedAt: '2 hours ago',
     citizenName: 'Infra Drone Telemetry Unit 04',
+    citizenEmail: 'purushothamank.s799@gmail.com',
     upvotes: 56,
     aiAnalysis: {
       confidence: 94.1,
@@ -159,6 +162,7 @@ export const initialHazards: HazardReport[] = [
     imageUrl: '/sample-hazards/4_illegal_waste_dump.png',
     reportedAt: '3 hours ago',
     citizenName: 'Greenpeace Lake Watcher',
+    citizenEmail: 'purushothamank.s799@gmail.com',
     upvotes: 19,
     aiAnalysis: {
       confidence: 97.5,
@@ -198,6 +202,7 @@ export const initialHazards: HazardReport[] = [
     imageUrl: '/sample-hazards/5_broken_smart_streetlight.png',
     reportedAt: '25 mins ago',
     citizenName: 'Kavita Menon',
+    citizenEmail: 'purushothamank.s799@gmail.com',
     upvotes: 38,
     aiAnalysis: {
       confidence: 99.1,
@@ -248,6 +253,7 @@ export const initialHazards: HazardReport[] = [
     imageUrl: '/sample-hazards/6_solar_grid_damage.png',
     reportedAt: '5 hours ago',
     citizenName: 'Solar Grid SCADA Telemetry',
+    citizenEmail: 'purushothamank.s799@gmail.com',
     upvotes: 8,
     aiAnalysis: {
       confidence: 93.4,

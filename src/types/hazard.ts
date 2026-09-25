@@ -80,6 +80,7 @@ export interface HazardReport {
   imageUrl: string;
   reportedAt: string;
   citizenName?: string;
+  citizenEmail?: string;
   upvotes: number;
   aiAnalysis: AIAnalysisResult;
   workOrder?: WorkOrder;

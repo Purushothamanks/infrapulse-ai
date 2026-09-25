@@ -158,9 +158,9 @@ export const TnGovHelpModal: React.FC<TnGovHelpModalProps> = ({ isOpen, onClose 
                   <PhoneCall className="w-3.5 h-3.5 text-cyan-500" />
                   <span>1913 / 044-25619206</span>
                 </a>
-                <a href="mailto:commissioner@chennaicorporation.gov.in" className="flex items-center gap-1 text-slate-700 dark:text-slate-300 hover:text-cyan-500">
+                <a href="mailto:contact@chennaicorporation.gov.in" className="flex items-center gap-1 text-slate-700 dark:text-slate-300 hover:text-cyan-500">
                   <Mail className="w-3.5 h-3.5 text-cyan-500" />
-                  <span>commissioner@chennaicorporation.gov.in</span>
+                  <span>contact@chennaicorporation.gov.in</span>
                 </a>
               </div>
             </div>

@@ -14,7 +14,9 @@ import {
   AlertTriangle,
   UserCheck,
   Printer,
-  MessageSquare
+  MessageSquare,
+  Mail,
+  Send
 } from 'lucide-react';
 import { OfficialWorkOrderPdfModal } from './OfficialWorkOrderPdfModal';
 
@@ -31,11 +33,42 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
 }) => {
   const [isGeneratingWorkOrder, setIsGeneratingWorkOrder] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [statusEmailNotice, setStatusEmailNotice] = useState<string | null>(null);
 
   if (!hazard) return null;
 
   const currentProgress = getHazardProgress(hazard.status);
   const PROGRESS_OPTIONS: HazardProgress[] = ['Not started', 'In progress', 'Completed'];
+
+  const dispatchStatusEmail = async (prog: HazardProgress, workOrderId?: string, contractorTeam?: string) => {
+    const targetEmail = hazard.citizenEmail || 'purushothamank.s799@gmail.com';
+    try {
+      const res = await fetch('/api/notifications/status-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          hazardId: hazard.id,
+          hazardTitle: hazard.title,
+          newStatus: prog,
+          citizenEmail: targetEmail,
+          citizenName: hazard.citizenName || 'Civic Scout',
+          locationAddress: hazard.location.address,
+          ward: hazard.location.ward,
+          contractorTeam: contractorTeam || hazard.workOrder?.contractorTeam,
+          scheduledDispatch: hazard.workOrder?.scheduledDispatch,
+          workOrderId: workOrderId || hazard.workOrder?.orderId
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setStatusEmailNotice(`Automated email notification sent to ${targetEmail} (${prog})`);
+        setTimeout(() => setStatusEmailNotice(null), 8000);
+      }
+    } catch (err) {
+      console.error('Failed to dispatch grievance status email:', err);
+    }
+  };
 
   const handleProgressChange = (newProg: HazardProgress) => {
     const newStatus = progressToStatus(newProg);
@@ -43,6 +76,11 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
       ...hazard,
       status: newStatus
     });
+
+    // Immediately dispatch email update to the citizen who posted the hazard
+    if (newProg === 'In progress' || newProg === 'Completed') {
+      dispatchStatusEmail(newProg);
+    }
   };
 
   const handleGenerateWorkOrder = async () => {
@@ -67,6 +105,8 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
           workOrder: data.workOrder
         };
         onUpdateHazard(updated);
+        // Dispatch email notification informing citizen that repair work order was generated & dispatched
+        dispatchStatusEmail('In progress', data.workOrder.orderId, data.workOrder.contractorTeam);
         try {
           const confettiModule = await import('canvas-confetti');
           const confettiFn = confettiModule.default || confettiModule;
@@ -137,11 +177,25 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
                 {hazard.citizenName && (
                   <span className="flex items-center gap-1 text-slate-800 dark:text-slate-300">
                     <UserCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                    {hazard.citizenName}
+                    {hazard.citizenName.replace(/commissioner\s*/gi, '').trim()}
+                  </span>
+                )}
+                {hazard.citizenEmail && (
+                  <span className="flex items-center gap-1 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
+                    <Mail className="w-3.5 h-3.5 text-emerald-500" />
+                    {hazard.citizenEmail}
                   </span>
                 )}
               </div>
             </div>
+
+            {/* Live Email Notification Toast */}
+            {statusEmailNotice && (
+              <div className="w-full p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-500/50 text-emerald-900 dark:text-emerald-200 text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-1 shadow-sm">
+                <Send className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 animate-bounce" />
+                <span className="font-semibold">{statusEmailNotice}</span>
+              </div>
+            )}
 
             {/* ADMIN PROGRESS CONTROLLER */}
             <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
