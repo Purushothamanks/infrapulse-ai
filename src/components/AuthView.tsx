@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -9,117 +9,144 @@ import {
   Building2,
   User as UserIcon,
   Mail,
-  Lock,
-  ArrowRight,
   KeyRound,
   CheckCircle2,
   AlertCircle,
-  Fingerprint
+  Fingerprint,
+  Loader2,
+  RefreshCw,
+  ArrowLeft,
+  Lock
 } from 'lucide-react';
 
+const REQUIRED_ADMIN_EMAIL = 'purushothamank.s799@gmail.com';
+const REQUIRED_GOVT_ID = 'TN-SAMPLE-2026';
+
 export const AuthView: React.FC = () => {
-  const { login, sendVerificationCode, verifyEmailAndSetPassword, quickLogin } = useAuth();
+  const { requestOtp, verifyOtpAndLogin } = useAuth();
 
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
-  const [authMode, setAuthMode] = useState<'signin' | 'register'>('signin');
+  const [step, setStep] = useState<'input' | 'verify'>('input');
 
   // Form Fields
   const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>('admin@mygovtai.gov');
-  const [password, setPassword] = useState<string>('admin123');
-  const [officialId, setOfficialId] = useState<string>('');
-
-  // Email Verification Step
-  const [verificationSent, setVerificationSent] = useState<boolean>(false);
-  const [verificationCode, setVerificationCode] = useState<string>('');
-  const [enteredCode, setEnteredCode] = useState<string>('');
-  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [email, setEmail] = useState<string>(REQUIRED_ADMIN_EMAIL);
+  const [officialId, setOfficialId] = useState<string>(REQUIRED_GOVT_ID);
+  const [otpCode, setOtpCode] = useState<string>('');
 
   // Status
+  const [devCodeHint, setDevCodeHint] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [resendCooldown, setResendCooldown] = useState<number>(0);
+
+  // Countdown timer for resend
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const interval = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
 
   const handleRoleChange = (role: UserRole) => {
     setSelectedRole(role);
+    setStep('input');
     setErrorMessage('');
     setSuccessMessage('');
-    setVerificationSent(false);
-    if (authMode === 'signin') {
-      if (role === 'admin') {
-        setEmail('admin@mygovtai.gov');
-        setPassword('admin123');
-      } else {
-        setEmail('citizen@gmail.com');
-        setPassword('citizen123');
-      }
+    setDevCodeHint(null);
+    setOtpCode('');
+
+    if (role === 'admin') {
+      setEmail(REQUIRED_ADMIN_EMAIL);
+      setOfficialId(REQUIRED_GOVT_ID);
+      setName('K. S. Purushothaman');
     } else {
       setEmail('');
-      setPassword('');
+      setOfficialId('');
+      setName('');
     }
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage('');
-    setIsSubmitting(true);
-    const res = await login(email, password, selectedRole);
-    if (!res.success) {
-      setErrorMessage(res.error || 'Failed to sign in.');
-    }
-    setIsSubmitting(false);
-  };
-
-  const handleSendCode = async (e: React.FormEvent) => {
+  const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
-    setIsSubmitting(true);
+    setDevCodeHint(null);
 
-    const res = await sendVerificationCode(email, name, selectedRole, officialId);
-    if (res.success && res.code) {
-      setVerificationCode(res.code);
-      setVerificationSent(true);
-      setSuccessMessage('Verification code generated and sent to email!');
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Client-side quick validation for Admin
+    if (selectedRole === 'admin') {
+      if (cleanEmail !== REQUIRED_ADMIN_EMAIL.toLowerCase()) {
+        setErrorMessage(`Unauthorized: Only the designated municipal administrator (${REQUIRED_ADMIN_EMAIL}) is permitted to access the Official Admin Command Center.`);
+        return;
+      }
+      if (officialId.trim() !== REQUIRED_GOVT_ID) {
+        setErrorMessage(`Invalid Government Official ID. Authorized ID is ${REQUIRED_GOVT_ID}.`);
+        return;
+      }
     } else {
-      setErrorMessage(res.error || 'Failed to send verification code.');
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        setErrorMessage('Please enter a valid email address.');
+        return;
+      }
     }
-    setIsSubmitting(false);
+
+    setIsLoading(true);
+
+    try {
+      const res = await requestOtp(cleanEmail, selectedRole, officialId.trim(), name.trim());
+
+      if (res.success) {
+        setStep('verify');
+        setSuccessMessage(res.message || `Verification code dispatched to ${cleanEmail}`);
+        if (res.devCode) {
+          setDevCodeHint(res.devCode);
+          setOtpCode(res.devCode); // Auto-fill in dev/test mode for rapid UX
+        }
+        setResendCooldown(30);
+      } else {
+        setErrorMessage(res.error || 'Failed to dispatch verification code.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Unexpected connection error.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerifyAndSetPassword = async (e: React.FormEvent) => {
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
 
-    if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match.');
+    if (!otpCode || otpCode.trim().length < 6) {
+      setErrorMessage('Please enter the complete 6-digit verification code.');
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.');
-      return;
-    }
+    setIsLoading(true);
 
-    setIsSubmitting(true);
-    const res = await verifyEmailAndSetPassword(
-      email,
-      enteredCode,
-      password
-    );
+    try {
+      const res = await verifyOtpAndLogin(email.trim().toLowerCase(), otpCode.trim(), name.trim());
 
-    if (res.success) {
-      setSuccessMessage('Account activated successfully! Logging in...');
-    } else {
-      setErrorMessage(res.error || 'Failed to verify account.');
+      if (res.success) {
+        setSuccessMessage('Email verified successfully! Logging you in...');
+      } else {
+        setErrorMessage(res.error || 'Invalid or expired verification code.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Verification failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4 transition-colors relative selection:bg-emerald-500 selection:text-slate-950">
-      {/* Top Floating Theme Toggle - Symbol icon only */}
+      {/* Top Floating Theme Toggle */}
       <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20">
         <ThemeToggle />
       </div>
@@ -134,8 +161,11 @@ export const AuthView: React.FC = () => {
               className="h-14 sm:h-16 w-auto object-contain rounded-2xl shadow-md"
             />
           </div>
+          <h1 className="text-xl font-black tracking-tight text-slate-900 dark:text-white">
+            MyGovt AI Hub
+          </h1>
           <p className="text-xs text-slate-600 dark:text-slate-400 max-w-xs mx-auto">
-            Autonomous Urban Infrastructure Triage & Sustainable Smart City Portal
+            Autonomous Urban Infrastructure Triage & Verified Civic Action Portal
           </p>
         </div>
 
@@ -172,11 +202,14 @@ export const AuthView: React.FC = () => {
           {/* Header text for selected role */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
-                {selectedRole === 'admin' ? 'Municipal Official Access' : 'Citizen Grievance Access'}
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                {selectedRole === 'admin' ? 'Municipal Official Sign-In' : 'Civilian Citizen Sign-In'}
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {authMode === 'signin' ? 'Sign in to access your portal' : 'Register & verify your email'}
+                {step === 'input'
+                  ? 'Real-time two-factor email verification'
+                  : 'Enter the 6-digit OTP code sent to your inbox'}
               </p>
             </div>
             <span
@@ -192,25 +225,58 @@ export const AuthView: React.FC = () => {
 
           {/* Feedback Messages */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-500/40 text-red-700 dark:text-red-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
-              <span>{errorMessage}</span>
+            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-500/40 text-red-700 dark:text-red-300 text-xs flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{errorMessage}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>{successMessage}</span>
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <span className="leading-relaxed">{successMessage}</span>
             </div>
           )}
 
-          {/* SIGN IN FORM */}
-          {authMode === 'signin' ? (
-            <form onSubmit={handleSignIn} className="space-y-4">
+          {/* STEP 1: EMAIL & CREDENTIALS INPUT */}
+          {step === 'input' ? (
+            <form onSubmit={handleRequestOtp} className="space-y-4">
+              {/* If Admin Role, show restricted banner */}
+              {selectedRole === 'admin' ? (
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-1 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
+                    <Lock className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Authorized Administration Gateway</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Restricted to designated Municipal Administrator email and official Government ID credentials.
+                  </p>
+                </div>
+              ) : null}
+
+              {/* Name Field (Optional for Citizen) */}
+              {selectedRole === 'citizen' && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Your Full Name <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
+                    <UserIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Arjun Verma"
+                      className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Email Address */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Email Address
+                  {selectedRole === 'admin' ? 'Authorized Admin Email' : 'Email Address'}
                 </label>
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
                   <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" />
@@ -219,238 +285,169 @@ export const AuthView: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={selectedRole === 'admin' ? 'officer@mygovtai.gov' : 'name@example.com'}
+                    placeholder={selectedRole === 'admin' ? REQUIRED_ADMIN_EMAIL : 'your.email@domain.com'}
                     className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
                   />
                 </div>
+                {selectedRole === 'admin' && (
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block font-mono">
+                    Must match: {REQUIRED_ADMIN_EMAIL}
+                  </span>
+                )}
               </div>
+
+              {/* Official Govt ID for Admin */}
+              {selectedRole === 'admin' && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Government Official ID
+                  </label>
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
+                    <Fingerprint className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                    <input
+                      type="text"
+                      required
+                      value={officialId}
+                      onChange={(e) => setOfficialId(e.target.value)}
+                      placeholder="e.g. TN-SAMPLE-2026"
+                      className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200 font-mono"
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block font-mono">
+                    Must match: {REQUIRED_GOVT_ID}
+                  </span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Dispatching Verification Email...</span>
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-4 h-4" />
+                    <span>Send Verification Code to Email</span>
+                  </>
+                )}
+              </button>
+            </form>
+          ) : (
+            /* STEP 2: OTP VERIFICATION */
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+                <div className="text-slate-600 dark:text-slate-300 text-[11px]">
+                  Verification email sent to:
+                </div>
+                <div className="font-mono font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                  <span>{email}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('input');
+                      setErrorMessage('');
+                      setSuccessMessage('');
+                    }}
+                    className="text-emerald-600 dark:text-emerald-400 hover:underline text-[11px] font-sans flex items-center gap-1 cursor-pointer"
+                  >
+                    <ArrowLeft className="w-3 h-3" /> Change
+                  </button>
+                </div>
+              </div>
+
+              {/* Dev/Local Testing Banner if SMTP not configured */}
+              {devCodeHint && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Auto-Generated OTP (Live Test Mode):</span>
+                  </div>
+                  <div className="text-xl font-mono font-black tracking-widest text-amber-900 dark:text-amber-100 bg-amber-500/20 px-3 py-1 rounded-lg inline-block">
+                    {devCodeHint}
+                  </div>
+                  <p className="text-[10px] text-amber-700/80 dark:text-amber-400/80">
+                    Live SMTP: Add GMAIL_USER and GMAIL_APP_PASS in .env.local to dispatch real emails to any inbox.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  Password
+                  Enter 6-Digit Verification Code
                 </label>
-                <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
-                  <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
+                  <KeyRound className="w-5 h-5 text-emerald-500 shrink-0" />
                   <input
-                    type="password"
+                    type="text"
                     required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password..."
-                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
+                    maxLength={6}
+                    autoFocus
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="• • • • • •"
+                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100 font-mono tracking-[0.4em] text-lg font-bold text-center"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                disabled={isLoading || otpCode.length < 6}
+                className="w-full py-3 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
-                <span>Sign In to {selectedRole === 'admin' ? 'Command Center' : 'Citizen Desk'}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          ) : (
-            /* REGISTER WITH EMAIL VERIFICATION FLOW */
-            <div>
-              {!verificationSent ? (
-                <form onSubmit={handleSendCode} className="space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Full Name</label>
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200">
-                      <UserIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                      <input
-                        type="text"
-                        required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder={selectedRole === 'admin' ? 'Officer Name' : 'Citizen Name'}
-                        className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Email Address</label>
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200">
-                      <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="your.email@domain.com"
-                        className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
-                      />
-                    </div>
-                  </div>
-
-                  {selectedRole === 'admin' && (
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Official Government ID</label>
-                      <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200">
-                        <Fingerprint className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                        <input
-                          type="text"
-                          required
-                          value={officialId}
-                          onChange={(e) => setOfficialId(e.target.value)}
-                          placeholder="e.g. TN-MAWS-4091"
-                          className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Send Email Confirmation Code</span>
-                    <Mail className="w-4 h-4" />
-                  </button>
-                </form>
-              ) : (
-                /* STEP 2: ENTER CODE & SET PASSWORD */
-                <form onSubmit={handleVerifyAndSetPassword} className="space-y-4">
-                  {/* Highlighted Simulated Email Banner */}
-                  <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-500/40 text-xs space-y-1">
-                    <div className="font-bold text-emerald-800 dark:text-emerald-400 flex items-center gap-1.5">
-                      <Mail className="w-4 h-4" />
-                      <span>Verification Code Dispatched!</span>
-                    </div>
-                    <p className="text-slate-600 dark:text-slate-300 text-[11px]">
-                      Simulated inbox for demonstration: Your 4-digit security code is:
-                    </p>
-                    <div className="text-lg font-mono font-black text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-emerald-400 dark:border-emerald-500/60 inline-block tracking-widest">
-                      {verificationCode}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Enter 4-Digit Code</label>
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200">
-                      <KeyRound className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                      <input
-                        type="text"
-                        required
-                        maxLength={4}
-                        value={enteredCode}
-                        onChange={(e) => setEnteredCode(e.target.value)}
-                        placeholder="Enter code (e.g. 1234)"
-                        className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200 font-mono tracking-widest text-base"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Set Account Password</label>
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200">
-                      <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                      <input
-                        type="password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="At least 6 characters"
-                        className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">Confirm Password</label>
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200">
-                      <Lock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                      <input
-                        type="password"
-                        required
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
-                        placeholder="Re-enter password"
-                        className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full py-3 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Activate Account & Sign In</span>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Verifying Code...</span>
+                  </>
+                ) : (
+                  <>
                     <CheckCircle2 className="w-4 h-4" />
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
+                    <span>Verify & Enter {selectedRole === 'admin' ? 'Command Center' : 'Citizen Desk'}</span>
+                  </>
+                )}
+              </button>
 
-          {/* Toggle Sign In / Register Mode */}
-          <div className="pt-2 text-center text-xs">
-            {authMode === 'signin' ? (
-              <p className="text-slate-600 dark:text-slate-400">
-                New user?{' '}
+              {/* Resend button */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <button
+                  type="button"
+                  onClick={handleRequestOtp}
+                  disabled={isLoading || resendCooldown > 0}
+                  className="text-slate-600 dark:text-slate-400 hover:text-emerald-500 flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>
+                    {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend Code'}
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
-                    setAuthMode('register');
-                    setEmail('');
-                    setName('');
-                    setPassword('');
+                    setStep('input');
                     setErrorMessage('');
                     setSuccessMessage('');
+                    setDevCodeHint(null);
                   }}
-                  className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold cursor-pointer"
+                  className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
                 >
-                  Register & verify email
+                  Back to login
                 </button>
-              </p>
-            ) : (
-              <p className="text-slate-600 dark:text-slate-400">
-                Already registered?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthMode('signin');
-                    setErrorMessage('');
-                    setSuccessMessage('');
-                    setVerificationSent(false);
-                  }}
-                  className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold cursor-pointer"
-                >
-                  Sign in here
-                </button>
-              </p>
-            )}
-          </div>
+              </div>
+            </form>
+          )}
         </div>
 
-        {/* 1-Click Demo Logins for Hackathon Judges */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs space-y-2.5 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-mono">
-            <span>⚡ 1-CLICK DEMO LOGIN (FOR JUDGES):</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => quickLogin('admin')}
-              className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-left transition-all cursor-pointer flex flex-col gap-0.5 shadow-xs"
-            >
-              <span className="font-bold text-emerald-600 dark:text-emerald-400 text-[11px]">🏢 Municipal Admin</span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">Commissioner Mohan</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => quickLogin('citizen')}
-              className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-left transition-all cursor-pointer flex flex-col gap-0.5 shadow-xs"
-            >
-              <span className="font-bold text-cyan-600 dark:text-cyan-400 text-[11px]">👤 Civilian Citizen</span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">Arjun Verma (Citizen)</span>
-            </button>
-          </div>
+        {/* Security / Compliance Tag */}
+        <div className="text-center text-[11px] text-slate-400 dark:text-slate-500 font-mono flex items-center justify-center gap-2">
+          <span>🔒 End-to-End Encrypted</span>
+          <span>•</span>
+          <span>Government of Tamil Nadu Standards</span>
         </div>
       </div>
     </div>
