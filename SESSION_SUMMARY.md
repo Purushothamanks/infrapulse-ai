@@ -90,26 +90,48 @@
 
 ---
 
-## 7. File Map & Key Locations
+## 7. Universal Real-Time Cross-Device Synchronization
+
+- **Persistent Cloud Backend (`src/lib/hazardStore.ts`):**
+  - Stores all incidents in persistent `data/hazards_store.json` with in-memory caching and atomic file writes.
+  - No longer relies solely on transient `/tmp`.
+- **Client-Side Image Auto-Compression (`src/components/CitizenPortal.tsx`):**
+  - High-res camera photos (5-15 MB) are automatically resized via offscreen HTML5 `<canvas>` to max 960px with 72% JPEG quality (~40-60 KB).
+  - Enables instant sub-second upload and prevents network timeouts/aborts on mobile.
+- **Snappy 2-Second Polling with Audio Chime (`src/app/page.tsx`):**
+  - Real-time polling every 2 seconds with `Cache-Control: no-store, no-cache`.
+  - ID-set diffing detects incoming hazards posted by any external phone or device.
+  - Synthesized Web Audio API dispatch chime plays when a live incident lands from mobile.
+  - Pops up the live incident banner: `🚨 Live Incident Synced from Mobile Device` with direct inspection action.
+- **Shared Live QR Code (`src/components/MobileQrModal.tsx`):**
+  - QR Code defaults directly to `https://3.6.172.250.nip.io` so mobile devices join the exact same cloud environment as the admin laptop.
+
+---
+
+## 8. File Map & Key Locations
 
 | File | Purpose |
 | :--- | :--- |
 | `src/components/AuthView.tsx` | Sign In vs Sign Up tabs, clean input fields, contact note |
 | `src/context/AuthContext.tsx` | Client session state, `signIn()`, localStorage sanitization |
-| `src/components/Navbar.tsx` | Admin navbar with external Logout button and clean display name |
-| `src/components/CitizenPortal.tsx` | Citizen lodging interface, records `citizenEmail` |
+| `src/components/Navbar.tsx` | Admin navbar with external Logout button, clean display name, and LIVE CLOUD SYNC badge |
+| `src/components/CitizenPortal.tsx` | Citizen lodging interface, image auto-compression, LIVE CLOUD SYNC badge |
+| `src/components/MobileQrModal.tsx` | QR code pointing by default to live cloud server |
 | `src/components/HazardInspectorModal.tsx` | Admin inspector modal, triggers status update emails |
+| `src/app/page.tsx` | Universal 2s cross-device incident sync, audio chime, live alert banner |
+| `src/app/api/hazards/route.ts` | Server hazard store endpoint with strict no-cache headers |
 | `src/app/api/auth/signin/route.ts` | Instant email sign-in for existing users & admin |
 | `src/app/api/auth/send-otp/route.ts` | 6-digit OTP dispatch via Gmail SMTP |
 | `src/app/api/auth/verify-otp/route.ts` | Verifies OTP and registers account in user store |
 | `src/app/api/notifications/status-update/route.ts` | Dispatches status change emails to citizens |
+| `src/lib/hazardStore.ts` | Persistent cloud database (`data/hazards_store.json`) with in-memory caching |
 | `src/lib/userStore.ts` | Persistent user registry (`/tmp/mygovt_registered_users.json`) |
 | `src/lib/mailer.ts` | Nodemailer SMTP implementation for OTP & status alerts |
 | `src/data/mockHazards.ts` | Seeded demo hazards pre-linked to `purushothamank.s799@gmail.com` |
 
 ---
 
-## 8. Deployment Workflow Command
+## 9. Deployment Workflow Command
 
 To deploy any future updates to the AWS live server without memory bottlenecks:
 

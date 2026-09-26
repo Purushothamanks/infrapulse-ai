@@ -19,6 +19,26 @@ import {
   Filter
 } from 'lucide-react';
 
+function playChimeAlert() {
+  try {
+    if (typeof window === 'undefined') return;
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch (_) {}
+}
+
 export default function Home() {
   const { user, isLoading } = useAuth();
 
@@ -40,27 +60,31 @@ export default function Home() {
     }
   }, []);
 
-  // Real-Time Cross-Device Incident Sync with /api/hazards
+  // Universal Real-Time Cross-Device Incident Sync with /api/hazards
   useEffect(() => {
     let isMounted = true;
 
     const syncHazards = async () => {
       try {
-        const res = await fetch('/api/hazards');
+        const res = await fetch(`/api/hazards?_t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: { Pragma: 'no-cache' }
+        });
         if (res.ok) {
           const data = await res.json();
           if (data.success && Array.isArray(data.hazards) && isMounted) {
             setHazards((prev) => {
-              // Check if a new hazard arrived from another device
-              if (prev.length > 0 && data.hazards.length > prev.length) {
-                const newest = data.hazards[0];
-                if (newest && !prev.some((h) => h.id === newest.id)) {
-                  setLiveIncomingAlert(newest);
-                  setSelectedHazard(newest);
-                  setTimeout(() => {
-                    if (isMounted) setLiveIncomingAlert(null);
-                  }, 8000);
-                }
+              // Detect newly arrived hazard from any other mobile or desktop device
+              const prevIds = new Set(prev.map((h) => h.id));
+              const newlyArrived = data.hazards.find((h: HazardReport) => !prevIds.has(h.id));
+
+              if (newlyArrived && prev.length > 0) {
+                setLiveIncomingAlert(newlyArrived);
+                setSelectedHazard(newlyArrived);
+                playChimeAlert();
+                setTimeout(() => {
+                  if (isMounted) setLiveIncomingAlert(null);
+                }, 8000);
               }
               return data.hazards;
             });
@@ -69,11 +93,11 @@ export default function Home() {
       } catch (_) {}
     };
 
-    // Initial fetch
+    // Initial fetch immediately
     syncHazards();
 
-    // 3-second live sync interval across all phones & laptops
-    const interval = setInterval(syncHazards, 3000);
+    // 2-second snappy live sync interval across all phones & laptops
+    const interval = setInterval(syncHazards, 2000);
 
     return () => {
       isMounted = false;
@@ -89,17 +113,24 @@ export default function Home() {
   });
 
   const handleAddHazard = async (newReport: HazardReport) => {
-    const updated = [newReport, ...hazards];
+    // Optimistic local update
+    const updated = [newReport, ...hazards.filter((h) => h.id !== newReport.id)];
     setHazards(updated);
     setSelectedHazard(newReport);
     setMobileTab('map');
 
     try {
-      await fetch('/api/hazards', {
+      const res = await fetch('/api/hazards', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hazard: newReport })
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.hazards)) {
+          setHazards(data.hazards);
+        }
+      }
     } catch (e) {
       console.error('Failed to sync new hazard to server:', e);
     }
@@ -111,11 +142,17 @@ export default function Home() {
     setSelectedHazard(updated);
 
     try {
-      await fetch('/api/hazards', {
+      const res = await fetch('/api/hazards', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hazard: updated })
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.hazards)) {
+          setHazards(data.hazards);
+        }
+      }
     } catch (e) {
       console.error('Failed to sync hazard update to server:', e);
     }
@@ -129,9 +166,15 @@ export default function Home() {
     }
 
     try {
-      await fetch(`/api/hazards?id=${hazardId}`, {
+      const res = await fetch(`/api/hazards?id=${hazardId}`, {
         method: 'DELETE'
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.hazards)) {
+          setHazards(data.hazards);
+        }
+      }
     } catch (e) {
       console.error('Failed to delete hazard on server:', e);
     }

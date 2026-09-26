@@ -91,6 +91,52 @@ const CATEGORIES: Array<{
   }
 ];
 
+const compressImage = (dataUrlOrFile: string | File): Promise<string> => {
+  return new Promise((resolve) => {
+    if (typeof dataUrlOrFile === 'string' && !dataUrlOrFile.startsWith('data:image')) {
+      return resolve(dataUrlOrFile);
+    }
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 960;
+      let width = img.width;
+      let height = img.height;
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      } else {
+        resolve(typeof dataUrlOrFile === 'string' ? dataUrlOrFile : '');
+      }
+    };
+    img.onerror = () => {
+      resolve(typeof dataUrlOrFile === 'string' ? dataUrlOrFile : '');
+    };
+
+    if (typeof dataUrlOrFile === 'string') {
+      img.src = dataUrlOrFile;
+    } else {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(dataUrlOrFile);
+    }
+  });
+};
+
 export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   hazards,
   onAddHazard,
@@ -132,15 +178,21 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     setWard(cat.defaultWard);
   };
 
-  const handleCustomFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCustomFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setSelectedImage(reader.result as string);
+      try {
+        setIsAnalyzing(true);
+        setAnalysisProgress('Optimizing photo for fast cloud synchronization...');
+        const compressed = await compressImage(file);
+        setSelectedImage(compressed);
         setSelectedSampleId('custom-upload');
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Image compression error:', err);
+      } finally {
+        setIsAnalyzing(false);
+        setAnalysisProgress('');
+      }
     }
   };
 
@@ -168,12 +220,26 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   const handleCaptureFrame = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
-    canvas.width = videoRef.current.videoWidth || 640;
-    canvas.height = videoRef.current.videoHeight || 480;
+    const vw = videoRef.current.videoWidth || 640;
+    const vh = videoRef.current.videoHeight || 480;
+    const maxDim = 960;
+    let w = vw;
+    let h = vh;
+    if (w > maxDim || h > maxDim) {
+      if (w > h) {
+        h = Math.round((h * maxDim) / w);
+        w = maxDim;
+      } else {
+        w = Math.round((w * maxDim) / h);
+        h = maxDim;
+      }
+    }
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      ctx.drawImage(videoRef.current, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
       setSelectedImage(dataUrl);
       setSelectedSampleId('custom-upload');
     }
@@ -196,13 +262,16 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     setAnalysisProgress('Running Computer Vision Triage on uploaded photo...');
 
     try {
+      // Ensure image is compressed for instant universal sync
+      const finalImage = await compressImage(selectedImage);
+
       setTimeout(() => setAnalysisProgress('Cross-referencing Municipal GIS & Geo-Deduplication...'), 400);
 
       const res = await fetch('/api/analyze-hazard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageBase64: selectedImage,
+          imageBase64: finalImage,
           sampleId: selectedSampleId,
           description: description || `Civilian report: ${selectedType}`,
           lat: coords.lat,
@@ -212,6 +281,8 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
 
       const data = await res.json();
       if (data.success && data.analysis) {
+        setAnalysisProgress('Broadcasting incident to Municipal Command Center in real-time...');
+
         const newReport: HazardReport = {
           id: `HZ-2026-${Math.floor(9200 + Math.random() * 799)}`,
           title: data.analysis.hazardLabel,
@@ -227,7 +298,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             address: address || 'Reported Location',
             ward: ward || 'Ward 1 - Metro Central'
           },
-          imageUrl: selectedImage,
+          imageUrl: finalImage,
           reportedAt: 'Just now',
           citizenName: (user?.name || 'Registered Civilian').replace(/commissioner\s*/gi, '').trim(),
           citizenEmail: user?.email || 'citizen@gmail.com',
@@ -235,7 +306,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           aiAnalysis: data.analysis
         };
 
-        onAddHazard(newReport);
+        await onAddHazard(newReport);
         setSuccessSubmitted(true);
         try {
           const confettiModule = await import('canvas-confetti');
@@ -248,9 +319,12 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           setSuccessSubmitted(false);
           setActiveTab('history');
         }, 1500);
+      } else {
+        alert('Triage analysis failed. Please try again.');
       }
     } catch (err) {
       console.error('Submission failed', err);
+      alert('Network error submitting incident. Please check your connection.');
     } finally {
       setIsAnalyzing(false);
       setAnalysisProgress('');
@@ -278,6 +352,10 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             />
             <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
               CITIZEN DESK
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              LIVE CLOUD SYNC
             </span>
           </div>
 

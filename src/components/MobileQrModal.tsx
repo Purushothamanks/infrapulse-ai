@@ -16,12 +16,12 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
   publicUrl,
   localWifiUrl
 }) => {
-  const [activeMode, setActiveMode] = useState<'local' | 'cloud'>('local');
+  const [activeMode, setActiveMode] = useState<'local' | 'cloud'>('cloud');
   const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
-  const currentUrl = activeMode === 'local' ? localWifiUrl : publicUrl;
+  const currentUrl = activeMode === 'cloud' ? publicUrl : localWifiUrl;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(currentUrl);
@@ -51,8 +51,20 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
           </button>
         </div>
 
-        {/* Mode Selector: Local Wi-Fi vs Cloudflare */}
+        {/* Mode Selector: Live Cloud Server vs Local Wi-Fi */}
         <div className="mt-4 flex rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveMode('cloud')}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeMode === 'cloud'
+                ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            <span>Live Cloud Server</span>
+          </button>
           <button
             type="button"
             onClick={() => setActiveMode('local')}
@@ -64,18 +76,6 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
           >
             <Wifi className="w-3.5 h-3.5" />
             <span>Local Wi-Fi Network</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveMode('cloud')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeMode === 'cloud'
-                ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>Cloudflare Tunnel</span>
           </button>
         </div>
 
@@ -92,9 +92,9 @@ export const MobileQrModal: React.FC<MobileQrModalProps> = ({
             />
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 text-center font-mono">
-            {activeMode === 'local'
-              ? 'Connect mobile to same Wi-Fi and scan'
-              : 'Scan to access via secure Cloudflare tunnel'}
+            {activeMode === 'cloud'
+              ? 'Scan with any mobile phone to access live cloud sync'
+              : 'Connect mobile to same Wi-Fi and scan'}
           </p>
         </div>
 

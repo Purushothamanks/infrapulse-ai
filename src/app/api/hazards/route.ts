@@ -10,11 +10,20 @@ import { HazardReport } from '@/types/hazard';
 export async function GET() {
   try {
     const hazards = getAllHazards();
-    return NextResponse.json({
-      success: true,
-      hazards,
-      timestamp: Date.now()
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        hazards,
+        timestamp: Date.now()
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    );
   } catch (error: any) {
     console.error('Error fetching hazards:', error);
     return NextResponse.json(
