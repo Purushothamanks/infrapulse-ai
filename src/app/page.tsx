@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { initialHazards } from '@/data/mockHazards';
 import { HazardReport } from '@/types/hazard';
 import { Navbar } from '@/components/Navbar';
 import { RealWorldCityMap } from '@/components/RealWorldCityMap';
@@ -42,7 +41,7 @@ function playChimeAlert() {
 export default function Home() {
   const { user, isLoading } = useAuth();
 
-  const [hazards, setHazards] = useState<HazardReport[]>(initialHazards);
+  const [hazards, setHazards] = useState<HazardReport[]>([]);
   const [selectedHazard, setSelectedHazard] = useState<HazardReport | null>(null);
   const [inspectingHazard, setInspectingHazard] = useState<HazardReport | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
@@ -50,6 +49,7 @@ export default function Home() {
   const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
   const [liveIncomingAlert, setLiveIncomingAlert] = useState<HazardReport | null>(null);
+  const hasInitializedRef = useRef<boolean>(false);
 
   const [publicUrl, setPublicUrl] = useState<string>('https://3.6.172.250.nip.io');
   const localWifiUrl = 'http://10.121.226.91:3000';
@@ -74,17 +74,21 @@ export default function Home() {
           const data = await res.json();
           if (data.success && Array.isArray(data.hazards) && isMounted) {
             setHazards((prev) => {
-              // Detect newly arrived hazard from any other mobile or desktop device
-              const prevIds = new Set(prev.map((h) => h.id));
-              const newlyArrived = data.hazards.find((h: HazardReport) => !prevIds.has(h.id));
+              if (hasInitializedRef.current) {
+                // Detect newly arrived hazard from any other mobile or desktop device
+                const prevIds = new Set(prev.map((h) => h.id));
+                const newlyArrived = data.hazards.find((h: HazardReport) => !prevIds.has(h.id));
 
-              if (newlyArrived && prev.length > 0) {
-                setLiveIncomingAlert(newlyArrived);
-                setSelectedHazard(newlyArrived);
-                playChimeAlert();
-                setTimeout(() => {
-                  if (isMounted) setLiveIncomingAlert(null);
-                }, 8000);
+                if (newlyArrived) {
+                  setLiveIncomingAlert(newlyArrived);
+                  setSelectedHazard(newlyArrived);
+                  playChimeAlert();
+                  setTimeout(() => {
+                    if (isMounted) setLiveIncomingAlert(null);
+                  }, 8000);
+                }
+              } else {
+                hasInitializedRef.current = true;
               }
               return data.hazards;
             });
@@ -159,14 +163,37 @@ export default function Home() {
   };
 
   const handleDeleteHazard = async (hazardId: string) => {
+    if (hazardId === 'all') {
+      setHazards([]);
+      setSelectedHazard(null);
+      setInspectingHazard(null);
+      try {
+        const res = await fetch('/api/hazards?all=true', {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.hazards)) {
+            setHazards(data.hazards);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to clear all hazards on server:', e);
+      }
+      return;
+    }
+
     const next = hazards.filter((h) => h.id !== hazardId);
     setHazards(next);
     if (selectedHazard?.id === hazardId) {
       setSelectedHazard(null);
     }
+    if (inspectingHazard?.id === hazardId) {
+      setInspectingHazard(null);
+    }
 
     try {
-      const res = await fetch(`/api/hazards?id=${hazardId}`, {
+      const res = await fetch(`/api/hazards?id=${encodeURIComponent(hazardId)}`, {
         method: 'DELETE'
       });
       if (res.ok) {

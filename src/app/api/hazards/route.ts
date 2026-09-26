@@ -3,7 +3,8 @@ import {
   getAllHazards,
   addNewHazard,
   updateExistingHazard,
-  deleteExistingHazard
+  deleteExistingHazard,
+  clearAllHazards
 } from '@/lib/hazardStore';
 import { HazardReport } from '@/types/hazard';
 
@@ -93,6 +94,17 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const isAll = searchParams.get('all') === 'true' || id === 'all';
+
+    if (isAll) {
+      const updatedList = clearAllHazards();
+      return NextResponse.json({
+        success: true,
+        hazards: updatedList,
+        deletedId: 'all',
+        timestamp: Date.now()
+      });
+    }
 
     if (!id) {
       return NextResponse.json(

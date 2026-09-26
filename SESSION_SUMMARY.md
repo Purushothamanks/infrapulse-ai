@@ -205,3 +205,20 @@ git push origin main
     - AI triage breakdown, contractor assignment, and municipal SLA status
     - Community upvote action directly within the modal
 
+---
+
+## 12. Permanent Dummy Hazard Removal & Empty State Fix
+
+### A. Root Cause of Auto-Reappearing Hazards
+- **Server Auto-Reseed Bug:** In `src/lib/hazardStore.ts`, `readStore()` previously checked `if (Array.isArray(parsed) && parsed.length > 0)`. Whenever all hazards were deleted (`parsed.length === 0`), it treated the file as empty and executed `writeStore(initialHazards)`, rewriting the 6 default mock hazards back to disk. Every 2-second client poll would then pick up the re-seeded hazards.
+- **Client Initial State:** In `src/app/page.tsx`, `useState<HazardReport[]>(initialHazards)` loaded the 6 dummy hazards on every mount before the first fetch completed.
+- **Hardcoded Mock Seed:** In `src/data/mockHazards.ts`, `initialHazards` contained the 6 static hazards `HZ-2026-9041` through `HZ-2026-9046`.
+
+### B. Changes & Fixes Applied
+1. **Empty Array is Valid:** Updated `readStore()` in `src/lib/hazardStore.ts` to accept `Array.isArray(parsed)` without checking `length > 0`. If all hazards are deleted, the store stays clean and empty `[]`.
+2. **Purged Dummy Seed:** In `src/data/mockHazards.ts`, cleared all 6 static hazards and set `export const initialHazards: HazardReport[] = []`.
+3. **Clean Client Mount:** In `src/app/page.tsx`, initialized state to `useState<HazardReport[]>([])` and added `hasInitializedRef` so the 2s live poller only chimes for newly arriving live hazards, not on initial mount.
+4. **"Clear All" Capability:** Added `DELETE /api/hazards?all=true` endpoint and a **"Clear All"** button in `HazardQueue.tsx` allowing municipal admins to wipe all incidents with a single confirmation.
+5. **Clean Server Storage:** Wiped `data/hazards_store.json` and transient caches on both local and EC2 production server.
+
+

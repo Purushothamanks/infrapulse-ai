@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { HazardReport } from '@/types/hazard';
-import { initialHazards } from '@/data/mockHazards';
 
 function resolveStorePath(): string {
   try {
@@ -25,23 +24,23 @@ let memoryCache: HazardReport[] | null = null;
 function readStore(): HazardReport[] {
   try {
     if (!fs.existsSync(HAZARDS_FILE)) {
-      writeStore(initialHazards);
-      memoryCache = initialHazards;
-      return initialHazards;
+      writeStore([]);
+      memoryCache = [];
+      return [];
     }
     const data = fs.readFileSync(HAZARDS_FILE, 'utf-8');
     const parsed = JSON.parse(data) as HazardReport[];
-    if (Array.isArray(parsed) && parsed.length > 0) {
+    if (Array.isArray(parsed)) {
       memoryCache = parsed;
       return parsed;
     }
-    // Seed with initial hazards if file was empty
-    writeStore(initialHazards);
-    memoryCache = initialHazards;
-    return initialHazards;
+    // If invalid JSON structure, reset to clean empty array
+    writeStore([]);
+    memoryCache = [];
+    return [];
   } catch (err) {
     console.error('[HAZARD-STORE] Error reading hazards store file:', err);
-    return memoryCache || initialHazards;
+    return memoryCache || [];
   }
 }
 
@@ -80,4 +79,9 @@ export function deleteExistingHazard(hazardId: string): HazardReport[] {
   const next = hazards.filter((h) => h.id !== hazardId);
   writeStore(next);
   return next;
+}
+
+export function clearAllHazards(): HazardReport[] {
+  writeStore([]);
+  return [];
 }

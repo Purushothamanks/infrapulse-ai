@@ -40,9 +40,24 @@ export const HazardQueue: React.FC<HazardQueueProps> = ({
           <ShieldAlert className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           <h3 className="font-bold text-slate-900 dark:text-white text-sm">Live Triage Queue</h3>
         </div>
-        <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
-          {hazards.length} Incidents
-        </span>
+        <div className="flex items-center gap-2">
+          {hazards.length > 0 && onDeleteHazard && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Permanently clear all ${hazards.length} incidents from the municipal queue?`)) {
+                  onDeleteHazard('all');
+                }
+              }}
+              className="text-[11px] font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:underline cursor-pointer px-1"
+            >
+              Clear All
+            </button>
+          )}
+          <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
+            {hazards.length} Incidents
+          </span>
+        </div>
       </div>
 
       {/* Incident List */}
