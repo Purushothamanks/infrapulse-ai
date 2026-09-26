@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { HazardReport, HazardProgress, getHazardProgress, progressToStatus } from '@/types/hazard';
-import { Clock, MapPin, ChevronRight, CheckCircle2, ShieldAlert, Navigation } from 'lucide-react';
+import { Clock, MapPin, ChevronRight, CheckCircle2, ShieldAlert, Navigation, Trash2 } from 'lucide-react';
 
 interface HazardQueueProps {
   hazards: HazardReport[];
@@ -10,6 +10,7 @@ interface HazardQueueProps {
   onSelectHazard: (hazard: HazardReport) => void;
   onNavigateLocation: (hazard: HazardReport) => void;
   onUpdateHazard?: (updated: HazardReport) => void;
+  onDeleteHazard?: (hazardId: string) => void;
 }
 
 export const HazardQueue: React.FC<HazardQueueProps> = ({
@@ -17,7 +18,8 @@ export const HazardQueue: React.FC<HazardQueueProps> = ({
   selectedHazard,
   onSelectHazard,
   onNavigateLocation,
-  onUpdateHazard
+  onUpdateHazard,
+  onDeleteHazard
 }) => {
   const PROGRESS_OPTIONS: HazardProgress[] = ['Not started', 'In progress', 'Completed'];
 
@@ -105,23 +107,39 @@ export const HazardQueue: React.FC<HazardQueueProps> = ({
                     </div>
                   </div>
 
-                  {/* GPS MAP NAVIGATE SYMBOL BUTTON */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onNavigateLocation(hazard);
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:text-slate-950 transition-all cursor-pointer shadow-xs group/nav"
-                      title="Navigate Map to Hazard GPS Location"
-                    >
-                      <Navigation className="w-3.5 h-3.5 group-hover/nav:scale-110" />
-                      <span className="text-[10px] font-mono font-bold hidden sm:inline">GPS</span>
-                    </button>
+                    {/* GPS MAP NAVIGATE SYMBOL BUTTON */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onNavigateLocation(hazard);
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:text-slate-950 transition-all cursor-pointer shadow-xs group/nav"
+                        title="Navigate Map to Hazard GPS Location"
+                      >
+                        <Navigation className="w-3.5 h-3.5 group-hover/nav:scale-110" />
+                        <span className="text-[10px] font-mono font-bold hidden sm:inline">GPS</span>
+                      </button>
 
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white shrink-0 group-hover:translate-x-0.5 transition-all hidden sm:block" />
-                  </div>
+                      {onDeleteHazard && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Delete incident ${hazard.id} (${hazard.title}) from municipal triage queue?`)) {
+                              onDeleteHazard(hazard.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-xl bg-slate-100 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-950/50 text-slate-400 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                          title="Delete Hazard"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-900 dark:group-hover:text-white shrink-0 group-hover:translate-x-0.5 transition-all hidden sm:block" />
+                    </div>
                 </div>
 
                 {/* Bottom Row: ADMIN PROGRESS SELECTOR (Not started, In progress, Completed) */}

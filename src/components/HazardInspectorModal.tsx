@@ -16,7 +16,8 @@ import {
   Printer,
   MessageSquare,
   Mail,
-  Send
+  Send,
+  Trash2
 } from 'lucide-react';
 import { OfficialWorkOrderPdfModal } from './OfficialWorkOrderPdfModal';
 
@@ -24,16 +25,19 @@ interface HazardInspectorModalProps {
   hazard: HazardReport | null;
   onClose: () => void;
   onUpdateHazard: (updated: HazardReport) => void;
+  onDeleteHazard?: (hazardId: string) => void;
 }
 
 export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
   hazard,
   onClose,
-  onUpdateHazard
+  onUpdateHazard,
+  onDeleteHazard
 }) => {
   const [isGeneratingWorkOrder, setIsGeneratingWorkOrder] = useState(false);
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
   const [statusEmailNotice, setStatusEmailNotice] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (!hazard) return null;
 
@@ -151,12 +155,25 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
               ID: {hazard.id}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onDeleteHazard && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 border border-red-200 dark:border-red-900/50 transition-colors cursor-pointer"
+                title="Delete this incident from municipal database"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Delete Incident</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 sm:p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Scrollable Body */}
@@ -426,6 +443,45 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal for Admin */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-base font-bold text-slate-900 dark:text-white">Delete Incident?</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Are you sure you want to permanently delete hazard <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{hazard.id}</span> ({hazard.title})? It will be removed from the municipal triage system across all connected devices.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onDeleteHazard) {
+                    onDeleteHazard(hazard.id);
+                  }
+                  setShowDeleteConfirm(false);
+                  onClose();
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 transition-colors cursor-pointer"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Official Printable Work Order PDF Modal */}
       <OfficialWorkOrderPdfModal

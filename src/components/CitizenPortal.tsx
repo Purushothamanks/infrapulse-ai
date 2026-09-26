@@ -28,7 +28,10 @@ import {
   Users,
   ThumbsUp,
   Search,
-  Filter
+  Filter,
+  Eye,
+  ExternalLink,
+  Maximize2
 } from 'lucide-react';
 
 interface CitizenPortalProps {
@@ -209,6 +212,10 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   const [communitySearch, setCommunitySearch] = useState<string>('');
   const [currentVisualMetrics, setCurrentVisualMetrics] = useState<VisualMetrics | null>(null);
   const [rejectionError, setRejectionError] = useState<{ detectedObject?: string; reason: string } | null>(null);
+
+  // Detailed Modal & High-Res Image Lightbox State
+  const [selectedDetailHazard, setSelectedDetailHazard] = useState<HazardReport | null>(null);
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
   // Form State
   const [selectedType, setSelectedType] = useState<HazardType>('pothole');
@@ -421,11 +428,12 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           confettiFn({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
         } catch (_) {}
 
-        // Switch to personal track view after 1.5s
+        // Switch to personal track view after 1.2s and open detailed view immediately
         setTimeout(() => {
           setSuccessSubmitted(false);
           setActiveTab('history');
-        }, 1500);
+          setSelectedDetailHazard(newReport);
+        }, 1200);
       } else {
         // Triage rejected the photo as non-hazard or animal
         setIsAnalyzing(false);
@@ -465,10 +473,6 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             />
             <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
               CITIZEN DESK
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              LIVE CLOUD SYNC
             </span>
           </div>
 
@@ -824,15 +828,17 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                       key={hazard.id}
                       className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-4 hover:border-slate-300 dark:hover:border-slate-700 transition-all relative group"
                     >
-                      {/* Top Header: Image, Title, Urgency, and DELETE BUTTON */}
+                      {/* Top Header: Image, Title, Urgency, View Details, and DELETE BUTTON */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0 flex-1">
                           <img
                             src={hazard.imageUrl}
                             alt={hazard.title}
-                            className="w-14 h-14 object-cover rounded-2xl border border-slate-200 dark:border-slate-700 shrink-0"
+                            onClick={() => setEnlargedImage(hazard.imageUrl)}
+                            className="w-14 h-14 object-cover rounded-2xl border border-slate-200 dark:border-slate-700 shrink-0 cursor-pointer hover:opacity-90 hover:scale-105 transition-all shadow-xs"
+                            title="Click to view full photo"
                           />
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setSelectedDetailHazard(hazard)}>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
                                 {hazard.id}
@@ -847,7 +853,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                                 {hazard.urgency}
                               </span>
                             </div>
-                            <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1 line-clamp-1">
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1 line-clamp-1 hover:text-emerald-500 transition-colors">
                               {hazard.title}
                             </h4>
                             <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
@@ -857,16 +863,26 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                           </div>
                         </div>
 
-                        {/* DELETE BUTTON WITH TRASH ICON */}
-                        <button
-                          type="button"
-                          onClick={() => setDeletingId(hazard.id)}
-                          className="p-2 rounded-xl bg-slate-100 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-950/50 text-slate-400 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer shrink-0"
-                          title="Delete / Withdraw this complaint"
-                          aria-label="Delete Complaint"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {/* Actions: View Details and Delete Button */}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDetailHazard(hazard)}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-emerald-950/50 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                            title="View Full Grievance & AI Analysis Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingId(hazard.id)}
+                            className="p-2 rounded-xl bg-slate-100 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-950/50 text-slate-400 hover:text-red-600 dark:hover:text-red-400 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                            title="Delete / Withdraw this complaint"
+                            aria-label="Delete Complaint"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
                       {/* LIVE STATUS BADGE SELECTED BY ADMIN */}
@@ -1055,9 +1071,11 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                             <img
                               src={hazard.imageUrl}
                               alt={hazard.title}
-                              className="w-14 h-14 object-cover rounded-2xl border border-slate-200 dark:border-slate-700 shrink-0"
+                              onClick={() => setEnlargedImage(hazard.imageUrl)}
+                              className="w-16 h-16 object-cover rounded-2xl border border-slate-200 dark:border-slate-700 shrink-0 cursor-pointer hover:opacity-90 hover:scale-105 transition-all shadow-xs"
+                              title="Click to view full photo"
                             />
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setSelectedDetailHazard(hazard)}>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
                                   {hazard.id}
@@ -1077,7 +1095,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                                   </span>
                                 )}
                               </div>
-                              <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1 line-clamp-1">
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1 line-clamp-1 hover:text-cyan-500 transition-colors">
                                 {hazard.title}
                               </h4>
                               <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
@@ -1116,17 +1134,29 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                         </div>
                       </div>
 
-                      {/* Footer Actions: Upvote Button & Community Impact */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                        <button
-                          type="button"
-                          onClick={(e) => handleUpvote(hazard.id, e)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-950/40 dark:hover:bg-cyan-900/60 border border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-300 text-xs font-bold transition-all active:scale-95 cursor-pointer"
-                          title="Endorse this grievance to raise municipal priority"
-                        >
-                          <ThumbsUp className="w-3.5 h-3.5" />
-                          <span>Upvote ({hazard.upvotes || 0})</span>
-                        </button>
+                      {/* Footer Actions: View Place/Photo Details & Upvote Button */}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedDetailHazard(hazard)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+                            title="View high-resolution photo and complete place details"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                            <span>View Place & Photo</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={(e) => handleUpvote(hazard.id, e)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-950/40 dark:hover:bg-cyan-900/60 border border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-300 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                            title="Endorse this grievance to raise municipal priority"
+                          >
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                            <span>Upvote ({hazard.upvotes || 0})</span>
+                          </button>
+                        </div>
 
                         <span className="text-[10px] font-mono text-slate-400">
                           Priority Score: {hazard.severity}/100
@@ -1248,6 +1278,301 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                 className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold transition-all shadow-md cursor-pointer"
               >
                 Upload Real Infrastructure Defect Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HIGH-RESOLUTION IMAGE LIGHTBOX MODAL */}
+      {enlargedImage && (
+        <div
+          className="fixed inset-0 z-60 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md animate-in fade-in"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] w-full flex flex-col items-center">
+            <button
+              onClick={() => setEnlargedImage(null)}
+              className="absolute -top-10 right-0 p-2 text-white/80 hover:text-white rounded-full bg-slate-800/80 hover:bg-slate-700 transition-colors cursor-pointer"
+              title="Close image"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img
+              src={enlargedImage}
+              alt="Hazard Full View"
+              className="max-h-[85vh] max-w-full object-contain rounded-2xl shadow-2xl border border-slate-700"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* COMPREHENSIVE HAZARD DETAIL & PLACE INSPECTION MODAL */}
+      {selectedDetailHazard && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-slate-950/75 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-t-3xl sm:rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-colors">
+            {/* Header with Title, ID, and Close */}
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono text-xs font-bold text-slate-900 dark:text-white">
+                  {selectedDetailHazard.id}
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    selectedDetailHazard.urgency === 'CRITICAL'
+                      ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400'
+                  }`}
+                >
+                  {selectedDetailHazard.urgency} [{selectedDetailHazard.severity}/100]
+                </span>
+                {(selectedDetailHazard.citizenEmail || '').trim().toLowerCase() === userEmail && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30">
+                    Your Report
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setSelectedDetailHazard(null)}
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-5 overflow-y-auto space-y-4">
+              {/* Photo View with Enlarge Button */}
+              <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 group bg-slate-950">
+                <img
+                  src={selectedDetailHazard.imageUrl}
+                  alt={selectedDetailHazard.title}
+                  className="w-full h-52 sm:h-64 object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setEnlargedImage(selectedDetailHazard.imageUrl)}
+                  className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/85 hover:bg-slate-900 text-white text-xs font-semibold backdrop-blur-sm transition-all cursor-pointer shadow-md"
+                >
+                  <Maximize2 className="w-3.5 h-3.5" />
+                  <span>Enlarge Photo</span>
+                </button>
+              </div>
+
+              {/* Title and Category */}
+              <div>
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                  {selectedDetailHazard.title}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Reported by {selectedDetailHazard.citizenName || 'Civic Scout'} • {selectedDetailHazard.reportedAt}
+                </p>
+              </div>
+
+              {/* Place & Location Details Card */}
+              <div className="p-4 rounded-2xl bg-cyan-50/60 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800/60 space-y-2.5">
+                <h4 className="text-xs font-bold font-mono uppercase tracking-wider text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
+                  <MapPin className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+                  <span>Place & Geographic Location Details</span>
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Street Address:</span>
+                    <span className="font-semibold text-slate-900 dark:text-white block mt-0.5">
+                      {selectedDetailHazard.location.address}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Municipal Ward:</span>
+                    <span className="font-semibold text-slate-900 dark:text-white block mt-0.5">
+                      {selectedDetailHazard.location.ward}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block text-[11px]">GPS Coordinates:</span>
+                    <span className="font-mono text-slate-700 dark:text-slate-300 block mt-0.5">
+                      {selectedDetailHazard.location.lat.toFixed(5)}° N, {selectedDetailHazard.location.lng.toFixed(5)}° E
+                    </span>
+                  </div>
+                  <div className="flex items-end">
+                    <a
+                      href={`https://www.google.com/maps?q=${selectedDetailHazard.location.lat},${selectedDetailHazard.location.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open in Google Maps</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Status & Progress */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Live Municipal Progress:</span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-lg text-xs font-bold font-mono ${
+                      getHazardProgress(selectedDetailHazard.status) === 'Completed'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300'
+                        : getHazardProgress(selectedDetailHazard.status) === 'In progress'
+                        ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-300 animate-pulse'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300'
+                    }`}
+                  >
+                    {getHazardProgress(selectedDetailHazard.status)}
+                  </span>
+                </div>
+
+                {/* 3-Step Progress Timeline */}
+                <div className="flex items-center justify-between text-[11px] font-semibold pt-1">
+                  <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>1. Not started</span>
+                  </div>
+                  <div
+                    className={`w-8 h-0.5 ${
+                      getHazardProgress(selectedDetailHazard.status) === 'In progress' ||
+                      getHazardProgress(selectedDetailHazard.status) === 'Completed'
+                        ? 'bg-cyan-500'
+                        : 'bg-slate-300 dark:bg-slate-800'
+                    }`}
+                  />
+                  <div
+                    className={`flex items-center gap-1 ${
+                      getHazardProgress(selectedDetailHazard.status) === 'In progress' ||
+                      getHazardProgress(selectedDetailHazard.status) === 'Completed'
+                        ? 'text-cyan-600 dark:text-cyan-400 font-bold'
+                        : 'text-slate-400'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>2. In progress</span>
+                  </div>
+                  <div
+                    className={`w-8 h-0.5 ${
+                      getHazardProgress(selectedDetailHazard.status) === 'Completed'
+                        ? 'bg-emerald-500'
+                        : 'bg-slate-300 dark:bg-slate-800'
+                    }`}
+                  />
+                  <div
+                    className={`flex items-center gap-1 ${
+                      getHazardProgress(selectedDetailHazard.status) === 'Completed'
+                        ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                        : 'text-slate-400'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>3. Completed</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Engineering Analysis */}
+              {selectedDetailHazard.aiAnalysis && (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
+                  <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                    <span>AI Civil Engineering Triage Breakdown</span>
+                  </h4>
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Estimated Dimensions:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200">
+                        {selectedDetailHazard.aiAnalysis.dimensionsEstimated || 'Surface defect analyzed'}
+                      </span>
+                    </div>
+                    {selectedDetailHazard.aiAnalysis.detectedFeatures && (
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-1">Detected Observations:</span>
+                        <ul className="space-y-1">
+                          {selectedDetailHazard.aiAnalysis.detectedFeatures.map((feat, i) => (
+                            <li key={i} className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              <span>{feat}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {selectedDetailHazard.aiAnalysis.suggestedAction && (
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Suggested Municipal Protocol:</span>
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                          {selectedDetailHazard.aiAnalysis.suggestedAction}
+                        </span>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Est. Budget:</span>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white">
+                          ₹{selectedDetailHazard.aiAnalysis.estimatedCost?.toLocaleString() || '15,000'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Carbon Penalty:</span>
+                        <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                          {selectedDetailHazard.aiAnalysis.carbonPenaltyKgPerDay || '24.5'} kg/day
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Assigned Contractor (if any) */}
+              {selectedDetailHazard.workOrder && (
+                <div className="p-3.5 rounded-2xl bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800 text-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-500 dark:text-slate-400 block text-[10px]">
+                      Assigned Municipal Contractor
+                    </span>
+                    <span className="font-semibold text-cyan-800 dark:text-cyan-300">
+                      {selectedDetailHazard.workOrder.contractorTeam}
+                    </span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 font-mono text-[10px]">
+                    {selectedDetailHazard.workOrder.status}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between gap-3 shrink-0">
+              {(selectedDetailHazard.citizenEmail || '').trim().toLowerCase() === userEmail ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletingId(selectedDetailHazard.id);
+                    setSelectedDetailHazard(null);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 text-xs font-semibold cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Withdraw / Delete Grievance</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={(e) => handleUpvote(selectedDetailHazard.id, e)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-md"
+                >
+                  <ThumbsUp className="w-4 h-4" />
+                  <span>Upvote Community Hazard ({selectedDetailHazard.upvotes || 0})</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setSelectedDetailHazard(null)}
+                className="px-5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

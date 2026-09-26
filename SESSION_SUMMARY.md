@@ -176,3 +176,32 @@ git push origin main
   3. **Multimodal Cloud Vision Inspection:** Integrated with Google Gemini 1.5 Flash Vision / OpenAI Vision (`gpt-4o-mini`) via two-step verification prompt that strictly rejects non-infrastructure images with `{ "isValidHazard": false, "detectedObject": "..." }`.
   4. **422 Rejection Response & Citizen Alert Modal:** If an image is flagged as an animal or non-hazard, `/api/analyze-hazard` responds with HTTP 422. `CitizenPortal` intercepts the rejection and renders a user-friendly alert modal explaining why the photo was rejected and prompting the citizen to upload a photo of an active municipal infrastructure defect.
 
+---
+
+## 11. Clean UI, Admin Deletion & Detailed Post Inspection (Latest Release)
+
+### A. Removal of "LIVE CLOUD SYNC" Badges
+- Purged the blinking `"LIVE CLOUD SYNC"` indicator badges from both:
+  - **Citizen Desk** (`src/components/CitizenPortal.tsx` header)
+  - **Admin Navigation Bar** (`src/components/Navbar.tsx` top right)
+- Replaced with a cleaner, distraction-free municipal portal interface while retaining background real-time synchronization.
+
+### B. Admin Hazard Deletion
+- Municipal Admins can now permanently delete hazards directly from two convenient locations:
+  1. **Incident Queue Cards (`src/components/HazardQueue.tsx`):** A red trash icon appears next to the GPS locate button on every incident card.
+  2. **Incident Inspector Modal (`src/components/HazardInspectorModal.tsx`):** A prominent red `"Delete Incident"` button is available in the modal header.
+- Both deletion entry points include a confirmation dialog (`Are you sure you want to permanently delete incident #...? This action will remove the record from all municipal consoles.`) and immediately propagate deletion to the backend store via `DELETE /api/hazards?id=...` and update all connected devices.
+
+### C. Detailed Inspection After Posting & Community Place/Photo Views
+- **Instant Post-Submission Detailed Inspection:**
+  - Upon submitting a new hazard report in `CitizenPortal.tsx`, the interface transitions smoothly to the tracking view and automatically opens a comprehensive detail inspection modal (`selectedDetailHazard`).
+  - Displays the submitted photo, live municipal review status, GPS coordinates, detected severity, estimated repair cost, carbon penalty, suggested municipal protocol, and dimensions.
+- **Community & Personal Hazard Inspection:**
+  - Citizens can click any thumbnail in either the **"My Reports"** tab or the **"Community"** tab to open an uncropped high-resolution photo lightbox (`enlargedImage`).
+  - Added a **"View Place & Photo"** / **"Details"** button on every complaint card in both tabs, opening the full inspection view with:
+    - Full photo with zoom capability
+    - Exact street address, ward, and coordinates (Latitude/Longitude)
+    - One-click Google Maps navigation link (`https://www.google.com/maps/search/?api=1&query=lat,lng`)
+    - AI triage breakdown, contractor assignment, and municipal SLA status
+    - Community upvote action directly within the modal
+

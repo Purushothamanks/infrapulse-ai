@@ -330,6 +330,7 @@ export default function Home() {
                 setMobileTab('map');
               }}
               onUpdateHazard={handleUpdateHazard}
+              onDeleteHazard={handleDeleteHazard}
             />
           </div>
         </div>
@@ -357,6 +358,7 @@ export default function Home() {
           handleUpdateHazard(updated);
           setInspectingHazard(updated);
         }}
+        onDeleteHazard={handleDeleteHazard}
       />
 
       <MobileQrModal
