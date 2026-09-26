@@ -1,95 +1,263 @@
 import { NextResponse } from 'next/server';
 import { HazardType, UrgencyLevel, AIAnalysisResult } from '@/types/hazard';
 
+const ANIMAL_KEYWORDS = [
+  'dog', 'cat', 'animal', 'pet', 'cow', 'buffalo', 'goat', 'sheep', 'bird', 'horse',
+  'monkey', 'snake', 'puppy', 'kitten', 'fish', 'rabbit', 'duck', 'chicken', 'pig',
+  'tiger', 'lion', 'deer', 'elephant', 'bear', 'frog', 'toad', 'lizard', 'hamster'
+];
+
+const NON_HAZARD_KEYWORDS = [
+  'selfie', 'person', 'human', 'face', 'food', 'pizza', 'burger', 'sandwich',
+  'bedroom', 'bed', 'sofa', 'chair', 'furniture', 'room', 'car interior', 'drawing',
+  'meme', 'cartoon', 'screenshot', 'clothing', 'shirt', 'dress', 'shoe'
+];
+
+// Simple color and texture heuristic to distinguish road/asphalt/concrete from domestic/animal scenes
+function evaluateImageChromaticTexture(base64Data: string): { isLikelyNonHazard: boolean; reason?: string } {
+  try {
+    const raw = Buffer.from(base64Data.slice(0, 10000), 'base64');
+    // Sample bytes to check high saturation/warm color ratios vs neutral road asphalt
+    let warmTones = 0;
+    let coolTones = 0;
+    let neutralTones = 0;
+    const sampleSize = Math.min(raw.length - 2, 2000);
+
+    for (let i = 0; i < sampleSize; i += 3) {
+      const r = raw[i];
+      const g = raw[i + 1];
+      const b = raw[i + 2];
+      const diff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(b - r));
+      if (diff < 25) {
+        neutralTones++; // Grey, asphalt, concrete
+      } else if (r > g + 30 && r > b + 30) {
+        warmTones++; // Flesh, warm fur, domestic indoor lighting
+      } else {
+        coolTones++;
+      }
+    }
+
+    const total = (sampleSize / 3) || 1;
+    const warmRatio = warmTones / total;
+
+    // Extremely warm/flesh/fur-dominated images that lack roadway neutral greys
+    if (warmRatio > 0.65 && (neutralTones / total) < 0.15) {
+      return { isLikelyNonHazard: true, reason: 'High organic / warm tone profile inconsistent with road infrastructure' };
+    }
+  } catch (_) {}
+  return { isLikelyNonHazard: false };
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { imageBase64, sampleId, description, lat, lng } = body;
+    const { imageBase64, sampleId, description = '', lat, lng, visualMetrics } = body;
+
+    const descLower = (description || '').toLowerCase();
+
+    // 1. Pre-validation check: Reject explicit non-hazard / animal keywords
+    for (const kw of ANIMAL_KEYWORDS) {
+      if (descLower.includes(kw)) {
+        return NextResponse.json({
+          success: false,
+          isValidHazard: false,
+          detectedObject: `Animal (${kw})`,
+          error: `AI Verification Failed: Detected an animal (${kw}). The municipal triage system only accepts genuine urban infrastructure defects (potholes, water leaks, structural cracks, waste, or electrical defects).`
+        }, { status: 422 });
+      }
+    }
+
+    for (const kw of NON_HAZARD_KEYWORDS) {
+      if (descLower.includes(kw)) {
+        return NextResponse.json({
+          success: false,
+          isValidHazard: false,
+          detectedObject: kw,
+          error: `AI Verification Failed: Detected non-infrastructure subject (${kw}). Please upload a photo of an active civil infrastructure hazard.`
+        }, { status: 422 });
+      }
+    }
+
+    const isCustomUpload = sampleId === 'custom-upload' || (imageBase64 && imageBase64.startsWith('data:image'));
+
+    // 1.5 Client Visual Metrics Guardrail (detects animal fur/skin/domestic scenes)
+    if (isCustomUpload && visualMetrics?.isLikelyNonHazard) {
+      return NextResponse.json({
+        success: false,
+        isValidHazard: false,
+        detectedObject: 'Animal / Domestic Subject',
+        error: 'AI Vision Verification Failed: Photograph contains organic/fur/animal tones inconsistent with asphalt or municipal infrastructure. Please upload an actual photo of the roadway defect.'
+      }, { status: 422 });
+    }
 
     let analysis: AIAnalysisResult | null = null;
 
-    // 1. Check if Google Gemini API Key is available for Real Multimodal Computer Vision Analysis
+    // 2. Multimodal Cloud Vision (Gemini / OpenAI / OpenRouter)
     const geminiApiKey =
       process.env.GEMINI_API_KEY ||
       process.env.GOOGLE_API_KEY ||
       process.env.GOOGLE_GENAI_API_KEY;
 
-    if (geminiApiKey && imageBase64 && imageBase64.startsWith('data:image')) {
-      try {
-        console.log('[AI-VISION] Calling Google Gemini Flash Multimodal Vision API...');
+    const openAiApiKey =
+      process.env.OPENAI_API_KEY ||
+      process.env.VISION_API_KEY;
 
-        const match = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-        const mimeType = match ? match[1] : 'image/jpeg';
-        const base64Data = match ? match[2] : imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    if (isCustomUpload && (geminiApiKey || openAiApiKey)) {
+      const match = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+      const mimeType = match ? match[1] : 'image/jpeg';
+      const base64Data = match ? match[2] : imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
-        const systemPrompt = `You are an Autonomous AI Civil Engineering Infrastructure Inspector for Municipal Smart Cities.
-Analyze this urban infrastructure defect photograph. Return ONLY a valid JSON object matching this schema:
+      const visionSystemPrompt = `You are an Autonomous AI Civil Engineering Infrastructure Inspector for Municipal Smart Cities.
+Inspect this photograph with maximum rigor.
+STEP 1: Determine if this photograph depicts a GENUINE urban public infrastructure defect (e.g. asphalt road pothole, road crater, pressurized water main rupture, bridge/flyover concrete crack, illegal commercial waste heap, broken streetlight/wire shock hazard, or broken civic solar array).
+If this image is an ANIMAL (dog, cat, pet, cow, bird, etc.), a person, a selfie, food, indoor furniture, a vehicle interior, artwork, or any non-infrastructure object:
+Return strictly:
 {
+  "isValidHazard": false,
+  "confidence": 99.0,
+  "detectedObject": "<short name of what is shown, e.g. Domestic Dog, Domestic Cat, Human Face, Food, Room>",
+  "rejectionReason": "Photograph depicts an animal or non-infrastructure object, not a municipal civil hazard."
+}
+
+STEP 2: ONLY if the photograph is a REAL infrastructure defect, return:
+{
+  "isValidHazard": true,
   "confidence": number (between 88 and 99.5),
   "hazardType": exactly one of ["pothole", "water_leak", "structural_crack", "illegal_waste", "electrical_hazard", "solar_infrastructure"],
-  "hazardLabel": string (concise civil engineering defect title, e.g. "Severe Arterial Road Cavitation Crater"),
-  "detectedFeatures": array of 3 to 4 specific engineering visual defect observations (e.g. ["Asphalt sub-base erosion", "High traffic wheel-path cavitation", "Standing water accumulation"]),
-  "dimensionsEstimated": string (estimated physical area/depth, e.g. "1.6m diameter × 14.5cm depth"),
+  "hazardLabel": string (concise civil engineering defect title),
+  "detectedFeatures": array of 3 to 4 specific engineering visual defect observations,
+  "dimensionsEstimated": string (estimated physical area/depth),
   "severityScore": integer (1 to 100 based on public hazard and vehicular risk),
   "urgencyLevel": "CRITICAL" (if severity >= 85), "HIGH" (if severity >= 65), or "MODERATE",
-  "sustainabilityImpact": string (carbon emissions penalty from traffic stop-and-go, water loss, or soil contamination),
-  "suggestedAction": string (exact municipal repair protocol, e.g. "Rapid hot-mix polymer bitumen infill & safety bollard perimeter"),
-  "carbonPenaltyKgPerDay": number (estimated daily carbon penalty in kg CO2 equivalent),
-  "estimatedCost": integer (estimated repair cost in Indian Rupees INR),
+  "sustainabilityImpact": string (carbon penalty or environmental impact),
+  "suggestedAction": string (exact municipal repair protocol),
+  "carbonPenaltyKgPerDay": number,
+  "estimatedCost": integer (in INR),
   "isDuplicate": false
 }`;
 
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
-          {
+      // A. Try Google Gemini Flash Vision
+      if (geminiApiKey) {
+        try {
+          console.log('[AI-VISION] Calling Google Gemini Vision Model for defect verification...');
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      { text: visionSystemPrompt },
+                      { inline_data: { mime_type: mimeType, data: base64Data } }
+                    ]
+                  }
+                ],
+                generationConfig: {
+                  response_mime_type: 'application/json',
+                  temperature: 0.1
+                }
+              })
+            }
+          );
+
+          if (geminiRes.ok) {
+            const gData = await geminiRes.json();
+            const raw = gData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (raw) {
+              const parsed = JSON.parse(raw.replace(/```json/g, '').replace(/```/g, '').trim());
+              if (parsed.isValidHazard === false) {
+                return NextResponse.json({
+                  success: false,
+                  isValidHazard: false,
+                  detectedObject: parsed.detectedObject || 'Animal / Non-hazard',
+                  error: `AI Vision Rejected: This image does not show a municipal infrastructure hazard (Detected: ${parsed.detectedObject || 'Animal / Non-hazard'}). Please upload a genuine photo of a civic defect.`
+                }, { status: 422 });
+              }
+              if (parsed.isValidHazard === true && parsed.hazardType) {
+                analysis = parsed as AIAnalysisResult;
+              }
+            }
+          }
+        } catch (geminiErr: any) {
+          console.warn('[AI-VISION-WARN] Gemini call skipped:', geminiErr?.message);
+        }
+      }
+
+      // B. Try OpenAI / Vision endpoint if Gemini did not yield a result
+      if (!analysis && openAiApiKey) {
+        try {
+          console.log('[AI-VISION] Calling OpenAI Vision API for verification...');
+          const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${openAiApiKey}`
+            },
             body: JSON.stringify({
-              contents: [
+              model: 'gpt-4o-mini',
+              response_format: { type: 'json_object' },
+              messages: [
                 {
-                  parts: [
-                    { text: systemPrompt },
-                    {
-                      inline_data: {
-                        mime_type: mimeType,
-                        data: base64Data
-                      }
-                    }
+                  role: 'user',
+                  content: [
+                    { type: 'text', text: visionSystemPrompt },
+                    { type: 'image_url', image_url: { url: imageBase64 } }
                   ]
                 }
               ],
-              generationConfig: {
-                response_mime_type: 'application/json',
-                temperature: 0.2
-              }
+              temperature: 0.1
             })
-          }
-        );
+          });
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText.replace(/```json/g, '').replace(/```/g, '').trim());
-            if (parsed && parsed.hazardType && parsed.severityScore) {
-              analysis = parsed as AIAnalysisResult;
-              console.log('[AI-VISION-SUCCESS] Gemini Flash analyzed defect:', analysis.hazardLabel, analysis.hazardType);
+          if (openAiRes.ok) {
+            const oData = await openAiRes.json();
+            const content = oData.choices?.[0]?.message?.content;
+            if (content) {
+              const parsed = JSON.parse(content);
+              if (parsed.isValidHazard === false) {
+                return NextResponse.json({
+                  success: false,
+                  isValidHazard: false,
+                  detectedObject: parsed.detectedObject || 'Animal / Non-hazard',
+                  error: `AI Vision Rejected: This image does not show a municipal infrastructure hazard (Detected: ${parsed.detectedObject || 'Animal / Non-hazard'}). Please upload a genuine photo of a civic defect.`
+                }, { status: 422 });
+              }
+              if (parsed.isValidHazard === true && parsed.hazardType) {
+                analysis = parsed as AIAnalysisResult;
+              }
             }
           }
-        } else {
-          console.warn('[AI-VISION-WARN] Gemini request failed status:', geminiRes.status);
+        } catch (oaiErr: any) {
+          console.warn('[AI-VISION-WARN] OpenAI vision call skipped:', oaiErr?.message);
         }
-      } catch (geminiError: any) {
-        console.warn('[AI-VISION-FALLBACK] Gemini API call skipped or errored:', geminiError?.message);
       }
     }
 
-    // 2. High-Precision Civil Engineering Fallback Engine (when Gemini is unconfigured or offline)
+    // 3. Smart Heuristic & Guardrail Verification Engine (When offline or no cloud vision key)
     if (!analysis) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
-      if (sampleId?.includes('pothole') || description?.toLowerCase().includes('pothole') || description?.toLowerCase().includes('crater')) {
+      // For custom uploads without a cloud vision key:
+      if (isCustomUpload && imageBase64.startsWith('data:image')) {
+        const base64Clean = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        const textureCheck = evaluateImageChromaticTexture(base64Clean);
+
+        if (textureCheck.isLikelyNonHazard) {
+          return NextResponse.json({
+            success: false,
+            isValidHazard: false,
+            detectedObject: 'Non-infrastructure / Organic subject',
+            error: 'AI Vision Verification Failed: The photograph contains organic/animal color profiles inconsistent with municipal infrastructure. Please capture a direct photo of the road defect, water leak, or infrastructure issue.'
+          }, { status: 422 });
+        }
+      }
+
+      // Check problem category matching for verified civil defects
+      if (sampleId?.includes('pothole') || descLower.includes('pothole') || descLower.includes('crater') || descLower.includes('road')) {
         analysis = {
+          isValidHazard: true,
           confidence: 97.4,
           hazardType: 'pothole',
           hazardLabel: 'Deep Sub-Base Road Crater',
@@ -108,8 +276,9 @@ Analyze this urban infrastructure defect photograph. Return ONLY a valid JSON ob
           estimatedCost: 12500,
           isDuplicate: false
         };
-      } else if (sampleId?.includes('water') || description?.toLowerCase().includes('water') || description?.toLowerCase().includes('pipe')) {
+      } else if (sampleId?.includes('water') || descLower.includes('water') || descLower.includes('pipe') || descLower.includes('leak')) {
         analysis = {
+          isValidHazard: true,
           confidence: 98.9,
           hazardType: 'water_leak',
           hazardLabel: 'Municipal Pressurized Water Pipe Rupture',
@@ -127,8 +296,9 @@ Analyze this urban infrastructure defect photograph. Return ONLY a valid JSON ob
           estimatedCost: 42000,
           isDuplicate: false
         };
-      } else if (sampleId?.includes('waste') || description?.toLowerCase().includes('trash') || description?.toLowerCase().includes('garbage')) {
+      } else if (sampleId?.includes('waste') || descLower.includes('waste') || descLower.includes('trash') || descLower.includes('dump')) {
         analysis = {
+          isValidHazard: true,
           confidence: 96.1,
           hazardType: 'illegal_waste',
           hazardLabel: 'Unregulated Municipal Waste & Chemical Heap',
@@ -146,8 +316,9 @@ Analyze this urban infrastructure defect photograph. Return ONLY a valid JSON ob
           estimatedCost: 18500,
           isDuplicate: false
         };
-      } else if (sampleId?.includes('crack') || description?.toLowerCase().includes('bridge') || description?.toLowerCase().includes('flyover')) {
+      } else if (sampleId?.includes('crack') || descLower.includes('crack') || descLower.includes('bridge') || descLower.includes('flyover')) {
         analysis = {
+          isValidHazard: true,
           confidence: 93.8,
           hazardType: 'structural_crack',
           hazardLabel: 'Reinforced Concrete Structural Shear Crack',
@@ -165,8 +336,9 @@ Analyze this urban infrastructure defect photograph. Return ONLY a valid JSON ob
           estimatedCost: 65000,
           isDuplicate: false
         };
-      } else if (sampleId?.includes('street') || description?.toLowerCase().includes('light') || description?.toLowerCase().includes('electric')) {
+      } else if (sampleId?.includes('street') || descLower.includes('light') || descLower.includes('electric') || descLower.includes('shock')) {
         analysis = {
+          isValidHazard: true,
           confidence: 98.0,
           hazardType: 'electrical_hazard',
           hazardLabel: 'Smart Streetlight Terminal Shock Risk',
@@ -184,8 +356,9 @@ Analyze this urban infrastructure defect photograph. Return ONLY a valid JSON ob
           estimatedCost: 7800,
           isDuplicate: false
         };
-      } else if (sampleId?.includes('solar') || description?.toLowerCase().includes('solar') || description?.toLowerCase().includes('panel')) {
+      } else if (sampleId?.includes('solar') || descLower.includes('solar') || descLower.includes('panel')) {
         analysis = {
+          isValidHazard: true,
           confidence: 95.5,
           hazardType: 'solar_infrastructure',
           hazardLabel: 'Photovoltaic Micro-Grid Array Cell Damage',
@@ -204,29 +377,18 @@ Analyze this urban infrastructure defect photograph. Return ONLY a valid JSON ob
           isDuplicate: false
         };
       } else {
-        analysis = {
-          confidence: 92.0,
-          hazardType: 'pothole',
-          hazardLabel: 'Civil Infrastructure Surface Defect',
-          detectedFeatures: [
-            'Surface pavement deformation detected',
-            'Sub-base irregularity detected',
-            'Civil engineering risk profile flagged'
-          ],
-          dimensionsEstimated: 'Area: ~0.9m² | Moderate Depth',
-          severityScore: 75,
-          urgencyLevel: 'HIGH',
-          sustainabilityImpact: 'Accelerates infrastructure degradation and impacts neighborhood transit efficiency.',
-          suggestedAction: 'Dispatch Ward Field Engineer for on-site ultrasound check and patch sealing.',
-          carbonPenaltyKgPerDay: 26.0,
-          estimatedCost: 16000,
-          isDuplicate: false
-        };
+        // If image does not match any recognized civil category, reject as non-hazard!
+        return NextResponse.json({
+          success: false,
+          isValidHazard: false,
+          error: 'AI Verification Failed: The uploaded photograph does not match any recognized municipal infrastructure hazard. Please upload a clear photo of an asphalt pothole, pipe burst, structural fissure, illegal dumping, or electrical failure.'
+        }, { status: 422 });
       }
     }
 
     return NextResponse.json({
       success: true,
+      isValidHazard: true,
       analysis,
       geoAnalysis: {
         nearestClusterDistanceMeters: 42,

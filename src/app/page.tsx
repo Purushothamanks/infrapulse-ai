@@ -202,6 +202,7 @@ export default function Home() {
         hazards={hazards}
         onAddHazard={handleAddHazard}
         onDeleteHazard={handleDeleteHazard}
+        onUpdateHazard={handleUpdateHazard}
       />
     );
   }

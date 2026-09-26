@@ -24,13 +24,18 @@ import {
   Sparkles,
   Upload,
   Video,
-  X
+  X,
+  Users,
+  ThumbsUp,
+  Search,
+  Filter
 } from 'lucide-react';
 
 interface CitizenPortalProps {
   hazards: HazardReport[];
   onAddHazard: (newReport: HazardReport) => void;
   onDeleteHazard?: (hazardId: string) => void;
+  onUpdateHazard?: (updated: HazardReport) => void;
 }
 
 const CATEGORIES: Array<{
@@ -91,10 +96,18 @@ const CATEGORIES: Array<{
   }
 ];
 
-const compressImage = (dataUrlOrFile: string | File): Promise<string> => {
+export interface VisualMetrics {
+  organicRatio: number;
+  neutralRatio: number;
+  isLikelyNonHazard: boolean;
+}
+
+const compressImageAndAnalyze = (
+  dataUrlOrFile: string | File
+): Promise<{ dataUrl: string; visualMetrics?: VisualMetrics }> => {
   return new Promise((resolve) => {
     if (typeof dataUrlOrFile === 'string' && !dataUrlOrFile.startsWith('data:image')) {
-      return resolve(dataUrlOrFile);
+      return resolve({ dataUrl: dataUrlOrFile });
     }
     const img = new Image();
     img.onload = () => {
@@ -116,13 +129,55 @@ const compressImage = (dataUrlOrFile: string | File): Promise<string> => {
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.72));
+
+        let metrics: VisualMetrics | undefined = undefined;
+        try {
+          const sampleDim = 64;
+          const sCanvas = document.createElement('canvas');
+          sCanvas.width = sampleDim;
+          sCanvas.height = sampleDim;
+          const sCtx = sCanvas.getContext('2d');
+          if (sCtx) {
+            sCtx.drawImage(canvas, 0, 0, sampleDim, sampleDim);
+            const imgData = sCtx.getImageData(0, 0, sampleDim, sampleDim).data;
+            let warmOrganicPixels = 0;
+            let asphaltNeutralPixels = 0;
+            const totalPixels = sampleDim * sampleDim;
+
+            for (let i = 0; i < imgData.length; i += 4) {
+              const r = imgData[i];
+              const g = imgData[i + 1];
+              const b = imgData[i + 2];
+              const diff = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(b - r));
+
+              if (diff < 22) {
+                asphaltNeutralPixels++;
+              } else if (r > g + 22 && r > b + 28) {
+                warmOrganicPixels++;
+              }
+            }
+
+            const organicRatio = warmOrganicPixels / totalPixels;
+            const neutralRatio = asphaltNeutralPixels / totalPixels;
+
+            metrics = {
+              organicRatio,
+              neutralRatio,
+              isLikelyNonHazard: organicRatio > 0.45 && neutralRatio < 0.22
+            };
+          }
+        } catch (_) {}
+
+        resolve({
+          dataUrl: canvas.toDataURL('image/jpeg', 0.72),
+          visualMetrics: metrics
+        });
       } else {
-        resolve(typeof dataUrlOrFile === 'string' ? dataUrlOrFile : '');
+        resolve({ dataUrl: typeof dataUrlOrFile === 'string' ? dataUrlOrFile : '' });
       }
     };
     img.onerror = () => {
-      resolve(typeof dataUrlOrFile === 'string' ? dataUrlOrFile : '');
+      resolve({ dataUrl: typeof dataUrlOrFile === 'string' ? dataUrlOrFile : '' });
     };
 
     if (typeof dataUrlOrFile === 'string') {
@@ -140,13 +195,20 @@ const compressImage = (dataUrlOrFile: string | File): Promise<string> => {
 export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   hazards,
   onAddHazard,
-  onDeleteHazard
+  onDeleteHazard,
+  onUpdateHazard
 }) => {
   const { user, logout } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'raise' | 'history'>('raise');
+  const [activeTab, setActiveTab] = useState<'raise' | 'history' | 'community'>('raise');
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Community Filters & Verification State
+  const [communityCategoryFilter, setCommunityCategoryFilter] = useState<string>('ALL');
+  const [communitySearch, setCommunitySearch] = useState<string>('');
+  const [currentVisualMetrics, setCurrentVisualMetrics] = useState<VisualMetrics | null>(null);
+  const [rejectionError, setRejectionError] = useState<{ detectedObject?: string; reason: string } | null>(null);
 
   // Form State
   const [selectedType, setSelectedType] = useState<HazardType>('pothole');
@@ -167,13 +229,43 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   const [analysisProgress, setAnalysisProgress] = useState<string>('');
   const [successSubmitted, setSuccessSubmitted] = useState<boolean>(false);
 
-  // Filter complaints reported by citizen
-  const citizenComplaints = hazards;
+  // 1. Separate Personal Grievances (strictly this civilian's account)
+  const userEmail = (user?.email || '').trim().toLowerCase();
+  const myComplaints = hazards.filter(
+    (h) => (h.citizenEmail || '').trim().toLowerCase() === userEmail
+  );
+
+  // 2. Community Grievance Feed (all public municipal reports)
+  const communityComplaints = hazards.filter((h) => {
+    const matchesCategory =
+      communityCategoryFilter === 'ALL' || h.type === communityCategoryFilter;
+    const matchesSearch =
+      !communitySearch ||
+      h.title.toLowerCase().includes(communitySearch.toLowerCase()) ||
+      h.location.address.toLowerCase().includes(communitySearch.toLowerCase()) ||
+      h.location.ward.toLowerCase().includes(communitySearch.toLowerCase()) ||
+      h.id.toLowerCase().includes(communitySearch.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  const handleUpvote = (hazardId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const target = hazards.find((h) => h.id === hazardId);
+    if (!target) return;
+    const updated: HazardReport = {
+      ...target,
+      upvotes: (target.upvotes || 0) + 1
+    };
+    if (onUpdateHazard) {
+      onUpdateHazard(updated);
+    }
+  };
 
   const handleCategorySelect = (cat: (typeof CATEGORIES)[0]) => {
     setSelectedType(cat.type);
     setSelectedImage(cat.sampleFile);
     setSelectedSampleId(`sample-${cat.type}`);
+    setCurrentVisualMetrics(null);
     setAddress(cat.defaultAddress);
     setWard(cat.defaultWard);
   };
@@ -184,8 +276,9 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
       try {
         setIsAnalyzing(true);
         setAnalysisProgress('Optimizing photo for fast cloud synchronization...');
-        const compressed = await compressImage(file);
-        setSelectedImage(compressed);
+        const { dataUrl, visualMetrics } = await compressImageAndAnalyze(file);
+        setSelectedImage(dataUrl);
+        setCurrentVisualMetrics(visualMetrics || null);
         setSelectedSampleId('custom-upload');
       } catch (err) {
         console.error('Image compression error:', err);
@@ -217,7 +310,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     }
   };
 
-  const handleCaptureFrame = () => {
+  const handleCaptureFrame = async () => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
     const vw = videoRef.current.videoWidth || 640;
@@ -240,7 +333,9 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0, w, h);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
+      const { visualMetrics } = await compressImageAndAnalyze(dataUrl);
       setSelectedImage(dataUrl);
+      setCurrentVisualMetrics(visualMetrics || null);
       setSelectedSampleId('custom-upload');
     }
     handleStopCamera();
@@ -262,8 +357,19 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     setAnalysisProgress('Running Computer Vision Triage on uploaded photo...');
 
     try {
-      // Ensure image is compressed for instant universal sync
-      const finalImage = await compressImage(selectedImage);
+      const { dataUrl: finalImage, visualMetrics: finalMetrics } = await compressImageAndAnalyze(selectedImage);
+      const metricsToSend = currentVisualMetrics || finalMetrics;
+
+      // Fast Client-Side Guardrail: Animal / Domestic / Pet rejection
+      if (selectedSampleId === 'custom-upload' && metricsToSend?.isLikelyNonHazard) {
+        setIsAnalyzing(false);
+        setAnalysisProgress('');
+        setRejectionError({
+          detectedObject: 'Animal / Domestic Subject',
+          reason: 'AI Vision Verification Failed: Photograph contains organic/fur tones inconsistent with road or municipal civil infrastructure. Please capture a clear photo of an active municipal defect.'
+        });
+        return;
+      }
 
       setTimeout(() => setAnalysisProgress('Cross-referencing Municipal GIS & Geo-Deduplication...'), 400);
 
@@ -272,6 +378,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageBase64: finalImage,
+          visualMetrics: metricsToSend,
           sampleId: selectedSampleId,
           description: description || `Civilian report: ${selectedType}`,
           lat: coords.lat,
@@ -280,7 +387,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
       });
 
       const data = await res.json();
-      if (data.success && data.analysis) {
+      if (res.ok && data.success && data.analysis && data.isValidHazard !== false) {
         setAnalysisProgress('Broadcasting incident to Municipal Command Center in real-time...');
 
         const newReport: HazardReport = {
@@ -314,13 +421,19 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           confettiFn({ particleCount: 100, spread: 80, origin: { y: 0.5 } });
         } catch (_) {}
 
-        // Switch to track view after 1.5s
+        // Switch to personal track view after 1.5s
         setTimeout(() => {
           setSuccessSubmitted(false);
           setActiveTab('history');
         }, 1500);
       } else {
-        alert('Triage analysis failed. Please try again.');
+        // Triage rejected the photo as non-hazard or animal
+        setIsAnalyzing(false);
+        setAnalysisProgress('');
+        setRejectionError({
+          detectedObject: data.detectedObject || 'Animal / Non-infrastructure Object',
+          reason: data.error || 'AI Verification Failed: The image was not recognized as an active municipal civil hazard (pothole, water leak, structural crack, illegal waste, or electrical hazard). Please provide a photo of an active civil infrastructure issue.'
+        });
       }
     } catch (err) {
       console.error('Submission failed', err);
@@ -666,34 +779,43 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           </div>
         )}
 
-        {/* VIEW 2: TRACK GRIEVANCES & LIVE STATUS TRACKER (Opened via bottom Track option) */}
+        {/* VIEW 2: MY GRIEVANCES (Only this citizen's grievances) */}
         {activeTab === 'history' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Live Grievance Tracking Timeline</span>
-              </h3>
-              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                {citizenComplaints.length} Total Incidents
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>My Personal Grievance Track & History</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Grievances lodged by your verified citizen account ({user?.email || 'Guest Civilian'}).
+                </p>
+              </div>
+              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
+                {myComplaints.length} Personal Grievances
               </span>
             </div>
 
-            {citizenComplaints.length === 0 ? (
+            {myComplaints.length === 0 ? (
               <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No active grievances logged</h4>
-                <p className="text-xs text-slate-500">You haven&apos;t reported any civic hazards yet.</p>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No personal grievances logged yet</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  You haven&apos;t registered any municipal infrastructure defects under this account.
+                  Found a pothole or water leak? Lodge a grievance now.
+                </p>
                 <button
+                  type="button"
                   onClick={() => setActiveTab('raise')}
-                  className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs"
+                  className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs cursor-pointer hover:bg-emerald-400 transition-colors"
                 >
                   Raise a Complaint
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {citizenComplaints.map((hazard) => {
+                {myComplaints.map((hazard) => {
                   const isCritical = hazard.urgency === 'CRITICAL';
                   const progress = getHazardProgress(hazard.status);
 
@@ -838,64 +960,299 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             )}
           </div>
         )}
+
+        {/* VIEW 3: COMMUNITY CIVIC FEED (Public Hazards Reported by Other Citizens) */}
+        {activeTab === 'community' && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-cyan-600 dark:text-cyan-400" />
+                  <span>Community Civic Feed</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Public municipal infrastructure defects reported across the municipality. Browse & upvote critical issues.
+                </p>
+              </div>
+              <span className="self-start sm:self-auto text-xs font-mono font-semibold text-cyan-700 dark:text-cyan-300 bg-cyan-50 dark:bg-cyan-950/60 px-3 py-1 rounded-full border border-cyan-200 dark:border-cyan-800">
+                {communityComplaints.length} Public Incidents
+              </span>
+            </div>
+
+            {/* Search and Category Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by street address, ward, or hazard ID..."
+                  value={communitySearch}
+                  onChange={(e) => setCommunitySearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 text-slate-900 dark:text-white"
+                />
+                {communitySearch && (
+                  <button
+                    onClick={() => setCommunitySearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                {[
+                  { id: 'ALL', label: 'All Defect Types' },
+                  { id: 'pothole', label: 'Potholes' },
+                  { id: 'water_leak', label: 'Water Mains' },
+                  { id: 'structural_crack', label: 'Structural' },
+                  { id: 'illegal_waste', label: 'Waste' },
+                  { id: 'electrical_hazard', label: 'Electrical' },
+                  { id: 'solar_infrastructure', label: 'Solar' }
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setCommunityCategoryFilter(cat.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                      communityCategoryFilter === cat.id
+                        ? 'bg-cyan-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Community Grid */}
+            {communityComplaints.length === 0 ? (
+              <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
+                <Users className="w-10 h-10 text-slate-400 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No community grievances found</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  {communitySearch || communityCategoryFilter !== 'ALL'
+                    ? 'No public reports match your selected search or filter criteria.'
+                    : 'No public grievances have been posted across the municipality yet.'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {communityComplaints.map((hazard) => {
+                  const isCritical = hazard.urgency === 'CRITICAL';
+                  const progress = getHazardProgress(hazard.status);
+                  const isMyReport = (hazard.citizenEmail || '').trim().toLowerCase() === userEmail;
+
+                  return (
+                    <div
+                      key={hazard.id}
+                      className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-md space-y-4 hover:border-cyan-300 dark:hover:border-cyan-700/60 transition-all relative flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <img
+                              src={hazard.imageUrl}
+                              alt={hazard.title}
+                              className="w-14 h-14 object-cover rounded-2xl border border-slate-200 dark:border-slate-700 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                                  {hazard.id}
+                                </span>
+                                <span
+                                  className={`px-2 py-0.2 rounded-full text-[10px] font-mono font-bold ${
+                                    isCritical
+                                      ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                                      : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400'
+                                  }`}
+                                >
+                                  {hazard.urgency}
+                                </span>
+                                {isMyReport && (
+                                  <span className="px-2 py-0.2 rounded-full text-[9px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500/30">
+                                    Your Report
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1 line-clamp-1">
+                                {hazard.title}
+                              </h4>
+                              <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5 truncate">
+                                <MapPin className="w-3 h-3 text-cyan-600 dark:text-cyan-400 shrink-0" />
+                                {hazard.location.address}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Municipal Ward & Citizen Reporter Tag */}
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/60">
+                          <span>{hazard.location.ward}</span>
+                          <span className="text-[10px] font-mono">
+                            {hazard.citizenName || 'Civilian'} • {hazard.reportedAt}
+                          </span>
+                        </div>
+
+                        {/* LIVE PROGRESS BADGE */}
+                        <div className="flex items-center justify-between p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-xs">
+                          <span className="text-slate-600 dark:text-slate-400 font-medium">Status:</span>
+                          <span
+                            className={`px-2.5 py-0.5 rounded-lg text-xs font-bold font-mono ${
+                              progress === 'Completed'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300'
+                                : progress === 'In progress'
+                                ? 'bg-cyan-100 text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-300 animate-pulse'
+                                : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300'
+                            }`}
+                          >
+                            {progress === 'Completed' && '✓ '}
+                            {progress === 'In progress' && '⚡ '}
+                            {progress === 'Not started' && '⏳ '}
+                            {progress}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Footer Actions: Upvote Button & Community Impact */}
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={(e) => handleUpvote(hazard.id, e)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-50 hover:bg-cyan-100 dark:bg-cyan-950/40 dark:hover:bg-cyan-900/60 border border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-300 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                          title="Endorse this grievance to raise municipal priority"
+                        >
+                          <ThumbsUp className="w-3.5 h-3.5" />
+                          <span>Upvote ({hazard.upvotes || 0})</span>
+                        </button>
+
+                        <span className="text-[10px] font-mono text-slate-400">
+                          Priority Score: {hazard.severity}/100
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </main>
 
       {/* USER PAGE FIXED BOTTOM NAVIGATION DOCK:
-          Left: Raise
-          Center: Track (Prominent & mathematically centered)
-          Right: Help & Support (TN Govt details) */}
+          1: Raise
+          2: My Grievances
+          3: Community
+          4: Help & Support */}
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 px-4 py-2 transition-colors">
-        <div className="max-w-md mx-auto grid grid-cols-3 items-center relative">
-          {/* Left: Raise Grievance */}
-          <div className="flex justify-start">
-            <button
-              type="button"
-              onClick={() => setActiveTab('raise')}
-              className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
-                activeTab === 'raise'
-                  ? 'text-emerald-600 dark:text-emerald-400 font-bold'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <Camera className="w-5 h-5" />
-              <span className="text-[10px]">Raise</span>
-            </button>
-          </div>
+        <div className="max-w-md mx-auto grid grid-cols-4 items-center gap-1">
+          {/* 1. Raise Grievance */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('raise')}
+            className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'raise'
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Camera className="w-5 h-5" />
+            <span className="text-[10px]">Raise</span>
+          </button>
 
-          {/* CENTER: TRACK OPTION (Prominent Center Button - Dead Center) */}
-          <div className="flex justify-center relative -top-3">
-            <button
-              type="button"
-              onClick={() => setActiveTab('history')}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-xs shadow-lg transition-transform active:scale-95 cursor-pointer whitespace-nowrap ${
-                activeTab === 'history'
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-emerald-500/40 ring-4 ring-emerald-500/20'
-                  : 'bg-slate-900 text-white dark:bg-emerald-500/20 dark:text-emerald-300 border border-slate-700 dark:border-emerald-500/40'
-              }`}
-              title="Track submitted grievances"
-            >
-              <Clock className="w-4 h-4 animate-pulse" />
-              <span>Track</span>
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-slate-950 text-white">
-                {citizenComplaints.length}
-              </span>
-            </button>
-          </div>
+          {/* 2. My Grievances */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('history')}
+            className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all cursor-pointer relative ${
+              activeTab === 'history'
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="relative">
+              <Clock className="w-5 h-5" />
+              {myComplaints.length > 0 && (
+                <span className="absolute -top-1.5 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-emerald-500 text-slate-950">
+                  {myComplaints.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px]">My Reports</span>
+          </button>
 
-          {/* Right: Help & Support (TN Govt Helpline) */}
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => setIsHelpOpen(true)}
-              className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all cursor-pointer"
-              title="Tamil Nadu Government Official Help & Support"
-            >
-              <LifeBuoy className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <span className="text-[10px] font-semibold whitespace-nowrap">Help & Support</span>
-            </button>
-          </div>
+          {/* 3. Community Feed */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('community')}
+            className={`flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all cursor-pointer relative ${
+              activeTab === 'community'
+                ? 'text-cyan-600 dark:text-cyan-400 font-bold'
+                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <div className="relative">
+              <Users className="w-5 h-5" />
+              {communityComplaints.length > 0 && (
+                <span className="absolute -top-1.5 -right-2 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-cyan-500 text-slate-950">
+                  {communityComplaints.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px]">Community</span>
+          </button>
+
+          {/* 4. Help & Support */}
+          <button
+            type="button"
+            onClick={() => setIsHelpOpen(true)}
+            className="flex flex-col items-center gap-1 py-1.5 rounded-xl text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all cursor-pointer"
+            title="Tamil Nadu Government Official Help & Support"
+          >
+            <LifeBuoy className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <span className="text-[10px] whitespace-nowrap">Help</span>
+          </button>
         </div>
       </div>
+
+      {/* AI HAZARD VERIFICATION REJECTION MODAL */}
+      {rejectionError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-sm sm:max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/60 p-6 shadow-2xl space-y-4">
+            <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 flex items-center justify-center mx-auto">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <div className="text-center space-y-2">
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/60 px-3 py-1 rounded-full border border-red-200 dark:border-red-800">
+                AI Triage Verification Failed
+              </span>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                Defect Not Recognized as Civil Hazard
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                {rejectionError.reason}
+              </p>
+              {rejectionError.detectedObject && (
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs">
+                  <span className="text-slate-500 dark:text-slate-400">Identified Subject: </span>
+                  <span className="font-semibold text-slate-900 dark:text-white">{rejectionError.detectedObject}</span>
+                </div>
+              )}
+            </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setRejectionError(null)}
+                className="w-full py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold transition-all shadow-md cursor-pointer"
+              >
+                Upload Real Infrastructure Defect Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* DELETE CONFIRMATION MODAL */}
       {deletingId && (

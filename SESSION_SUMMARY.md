@@ -148,3 +148,31 @@ git add .
 git commit -m "your commit message"
 git push origin main
 ```
+
+---
+
+## 10. Community Civic Feed & AI Hazard Verification (Latest Update)
+
+### A. Community Civic Feed vs Personal Grievances Separation
+- **Personal Tracking (`activeTab === 'history'`):**
+  - Shows strictly the complaints lodged by the logged-in citizen (`hazard.citizenEmail === user.email`).
+  - When empty, displays a clean citizen-oriented guidance screen.
+  - Allows the citizen to inspect their personal 3-step progress bar (`1. Not started`, `2. In progress`, `3. Completed`) and withdraw/delete their complaint.
+- **Community Civic Feed (`activeTab === 'community'`):**
+  - Dedicated tab where citizens can explore public defects reported across all municipal wards.
+  - Interactive **Upvote / Endorse** button (`▲ Upvote (X)`) to let citizens support high-risk community complaints, instantly boosting municipal triage prioritization across all connected devices in real time.
+  - Category filters (`All`, `Potholes`, `Water Mains`, `Structural`, `Waste`, `Electrical`, `Solar`) + live search by street address, ward, or defect ID.
+- **4-Item Fixed Bottom Navigation Dock:**
+  1. `Raise` (Camera icon)
+  2. `My Reports` (Clock icon with badge showing count of personal grievances)
+  3. `Community` (Users icon with badge showing count of public incidents)
+  4. `Help & Support` (LifeBuoy icon opening official TN Government helpline modal)
+
+### B. AI Defect Verification & Animal / Non-Hazard Rejection
+- **Problem Solved:** Previously, unclassified uploads defaulted to a 92% confidence pothole, causing photos of animals/pets to be accepted into the municipal database.
+- **Strict Verification Architecture:**
+  1. **Keyword Pre-Screening:** Fast rejection if description contains animal keywords (`dog`, `cat`, `animal`, `pet`, `cow`, `buffalo`, `bird`, `monkey`, `snake`, etc.) or non-hazard terms (`selfie`, `person`, `food`, `sofa`, `furniture`, `room`, etc.).
+  2. **Client & Server Chromatic/Texture Verification:** Real-time analysis of pixel histograms comparing organic/warm fur & skin tones (`R > G + 22` and `R > B + 28`) against neutral roadway asphalt/concrete greys (`|R - G| < 22` and `|G - B| < 22`).
+  3. **Multimodal Cloud Vision Inspection:** Integrated with Google Gemini 1.5 Flash Vision / OpenAI Vision (`gpt-4o-mini`) via two-step verification prompt that strictly rejects non-infrastructure images with `{ "isValidHazard": false, "detectedObject": "..." }`.
+  4. **422 Rejection Response & Citizen Alert Modal:** If an image is flagged as an animal or non-hazard, `/api/analyze-hazard` responds with HTTP 422. `CitizenPortal` intercepts the rejection and renders a user-friendly alert modal explaining why the photo was rejected and prompting the citizen to upload a photo of an active municipal infrastructure defect.
+

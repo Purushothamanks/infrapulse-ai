@@ -54,6 +54,9 @@ export interface AIAnalysisResult {
   estimatedCost: number; // in local currency (e.g. INR / USD)
   isDuplicate: boolean;
   duplicateClusterRef?: string;
+  isValidHazard?: boolean;
+  rejectionReason?: string;
+  detectedObject?: string;
 }
 
 export interface WorkOrder {
