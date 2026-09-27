@@ -56,9 +56,9 @@ function evaluateImageChromaticTexture(base64Data: string): { isLikelyNonHazard:
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { imageBase64, sampleId, description = '', lat, lng, visualMetrics } = body;
+    const { imageBase64, sampleId, description = '', lat, lng, visualMetrics, fileName = '' } = body;
 
-    const descLower = (description || '').toLowerCase();
+    const descLower = `${description || ''} ${fileName || ''}`.toLowerCase();
 
     // 1. Pre-validation check: Reject explicit non-hazard / animal keywords
     for (const kw of ANIMAL_KEYWORDS) {
@@ -97,13 +97,15 @@ export async function POST(request: Request) {
 
     const isCustomUpload = sampleId === 'custom-upload' || (imageBase64 && imageBase64.startsWith('data:image'));
 
-    // 1.5 Client Visual Metrics Guardrail (detects animal fur/skin/domestic scenes)
-    if (isCustomUpload && visualMetrics?.isLikelyNonHazard) {
+    // 1.5 Client Visual Metrics Guardrail (detects AI fakes, animals, selfies, domestic scenes)
+    if (isCustomUpload && (visualMetrics?.isLikelyFakeOrNonHazard || visualMetrics?.isLikelyNonHazard)) {
+      const isFake = visualMetrics.detectedSubjectGuess === 'AI_GENERATED_FAKE' || (visualMetrics.aiDiffusionProbability || 0) > 0.55;
       return NextResponse.json({
         success: false,
         isValidHazard: false,
-        detectedObject: 'Animal / Domestic Subject',
-        error: 'AI Vision Verification Failed: Photograph contains organic/fur/animal tones inconsistent with asphalt or municipal infrastructure. Please upload an actual photo of the roadway defect.'
+        isAiGenerated: isFake,
+        detectedObject: visualMetrics.detectedSubjectGuess || 'Non-Infrastructure Subject',
+        error: visualMetrics.rejectionReason || 'AI Vision Verification Failed: Photograph does not depict a genuine civil municipal infrastructure defect.'
       }, { status: 422 });
     }
 
