@@ -221,4 +221,44 @@ git push origin main
 4. **"Clear All" Capability:** Added `DELETE /api/hazards?all=true` endpoint and a **"Clear All"** button in `HazardQueue.tsx` allowing municipal admins to wipe all incidents with a single confirmation.
 5. **Clean Server Storage:** Wiped `data/hazards_store.json` and transient caches on both local and EC2 production server.
 
+---
+
+## 13. Dual-Pillar AI Verification Engine & Interactive Road Damage Simulator
+
+### A. Dual-Pillar AI Governance Pipeline
+1. **Pillar 1: Object Relevance & Classification (YOLOv8 + Vision LLM):**
+   - Strictly verifies that uploaded images depict legitimate municipal infrastructure defects (potholes, pressurized pipe bursts, structural shear cracks, illegal waste, streetlight hazards, solar arrays).
+   - Rejects **Mismatched Subjects** (pets/animals, selfies, indoor furniture, food, room interiors) with HTTP 422.
+2. **Pillar 2: Synthetic / AI-Generated Fake Image Detection (Spectral Residual Frequency Net):**
+   - Inspects frequency spectra, noise anomaly consistency, and generative diffusion artifacts (Midjourney, DALL-E, Stable Diffusion).
+   - Rejects synthetic fakes as **AI_GENERATED_FAKE** to prevent municipal bounty fraud or simulated nuisance complaints.
+3. **Automated Governance Verdict Engine:**
+   - Issues a binary **APPROVED** vs **REJECTED** verdict.
+   - Computes rich telemetry: `Optical Authenticity %`, `Civil Relevance %`, and `Synthetic Noise Risk Index`.
+
+### B. Interactive Road Damage & Image Verification Simulator (`src/components/VerificationSimulatorModal.tsx`)
+- Accessible in both **Admin Command Center** (`Navbar.tsx`) and **Citizen Portal** (`CitizenPortal.tsx`), as well as directly from the rejection alert modal.
+- Includes 5 interactive test cases + live custom upload:
+  1. `Case 1: Severe Road Crater` -> **APPROVED** (98.6% Authenticity, 97.4% Relevance).
+  2. `Case 2: Domestic Pet (Golden Dog)` -> **REJECTED: Mismatched Subject** (1.8% Relevance, 99.4% Animal detection).
+  3. `Case 3: AI-Generated Fake Pothole` -> **REJECTED: Synthetic AI Fraud** (95.2% Noise anomaly, diffusion latent markers).
+  4. `Case 4: Indoor Living Room / Sofa` -> **REJECTED: Non-Infrastructure** (3.1% Relevance, residential furniture).
+  5. `Case 5: Pressurized Water Main Rupture` -> **APPROVED** (99.2% Authenticity, 98.7% Relevance).
+- Features animated laser scanning overlay, real-time diagnostic progress bars, four-step inspection audit trail, and a live button to **inject verified defects directly into the municipal command center GIS grid**.
+
+### C. File Additions & Updates
+| File | Action | Purpose |
+| :--- | :--- | :--- |
+| `src/types/hazard.ts` | Updated | Added `VerificationTelemetry` interface and fields |
+| `src/app/api/verify-simulator/route.ts` | **Created** | Dual-pillar verification diagnostics API endpoint |
+| `src/components/VerificationSimulatorModal.tsx` | **Created** | Interactive visual simulator modal with 5 presets & custom upload |
+| `public/sample-hazards/test_case_animal_dog.svg` | **Created** | High-fidelity test asset for animal/pet mismatch |
+| `public/sample-hazards/test_case_ai_fake_pothole.svg` | **Created** | Test asset for synthetic generative AI fake detection |
+| `public/sample-hazards/test_case_indoor_room.svg` | **Created** | Test asset for indoor domestic non-hazard rejection |
+| `src/app/api/analyze-hazard/route.ts` | Updated | Added `AI_GENERATED_KEYWORDS` and dual-pillar vision prompt |
+| `src/components/Navbar.tsx` | Updated | Added "AI Simulator" button with `ScanEye` icon |
+| `src/components/CitizenPortal.tsx` | Updated | Added "AI Simulator" button in header & rejection alert modal |
+| `src/app/page.tsx` | Updated | Wired `VerificationSimulatorModal` to both citizen & admin states |
+
+
 

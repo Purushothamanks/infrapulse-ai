@@ -31,7 +31,8 @@ import {
   Filter,
   Eye,
   ExternalLink,
-  Maximize2
+  Maximize2,
+  ScanEye
 } from 'lucide-react';
 
 interface CitizenPortalProps {
@@ -39,6 +40,7 @@ interface CitizenPortalProps {
   onAddHazard: (newReport: HazardReport) => void;
   onDeleteHazard?: (hazardId: string) => void;
   onUpdateHazard?: (updated: HazardReport) => void;
+  onOpenSimulator?: () => void;
 }
 
 const CATEGORIES: Array<{
@@ -199,7 +201,8 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   hazards,
   onAddHazard,
   onDeleteHazard,
-  onUpdateHazard
+  onUpdateHazard,
+  onOpenSimulator
 }) => {
   const { user, logout } = useAuth();
 
@@ -480,6 +483,18 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Theme Toggle Button */}
             <ThemeToggle />
+
+            {/* AI Simulator Button (Interactive Road Damage & Image Verification Simulator) */}
+            {onOpenSimulator && (
+              <button
+                onClick={onOpenSimulator}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-300 dark:border-indigo-500/40 text-indigo-800 dark:text-indigo-300 transition-all cursor-pointer shadow-xs"
+                title="Open Dual-Pillar AI Road Damage & Image Verification Simulator"
+              >
+                <ScanEye className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span className="hidden sm:inline font-bold">AI Simulator</span>
+              </button>
+            )}
 
             {/* User Profile Tag */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
@@ -1271,7 +1286,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                 </div>
               )}
             </div>
-            <div className="pt-2">
+            <div className="pt-2 space-y-2">
               <button
                 type="button"
                 onClick={() => setRejectionError(null)}
@@ -1279,6 +1294,20 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
               >
                 Upload Real Infrastructure Defect Photo
               </button>
+
+              {onOpenSimulator && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRejectionError(null);
+                    onOpenSimulator();
+                  }}
+                  className="w-full py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <ScanEye className="w-3.5 h-3.5" />
+                  <span>Inspect in AI Verification Simulator</span>
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -13,6 +13,11 @@ const NON_HAZARD_KEYWORDS = [
   'meme', 'cartoon', 'screenshot', 'clothing', 'shirt', 'dress', 'shoe'
 ];
 
+const AI_GENERATED_KEYWORDS = [
+  'midjourney', 'dalle', 'dall-e', 'stable diffusion', 'ai generated', 'synthetic',
+  'photorealistic render', 'unreal engine', 'prompt', 'generated image', 'deepfake'
+];
+
 // Simple color and texture heuristic to distinguish road/asphalt/concrete from domestic/animal scenes
 function evaluateImageChromaticTexture(base64Data: string): { isLikelyNonHazard: boolean; reason?: string } {
   try {
@@ -78,6 +83,18 @@ export async function POST(request: Request) {
       }
     }
 
+    for (const kw of AI_GENERATED_KEYWORDS) {
+      if (descLower.includes(kw)) {
+        return NextResponse.json({
+          success: false,
+          isValidHazard: false,
+          isAiGenerated: true,
+          detectedObject: 'Synthetic AI-Generated Image',
+          error: `AI Fraud Alert: Detected synthetic AI generation keywords or diffusion artifacts (${kw}). InfraPulse AI strictly prohibits AI-generated road defects to prevent fraudulent civic claims.`
+        }, { status: 422 });
+      }
+    }
+
     const isCustomUpload = sampleId === 'custom-upload' || (imageBase64 && imageBase64.startsWith('data:image'));
 
     // 1.5 Client Visual Metrics Guardrail (detects animal fur/skin/domestic scenes)
@@ -108,21 +125,35 @@ export async function POST(request: Request) {
       const base64Data = match ? match[2] : imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
       const visionSystemPrompt = `You are an Autonomous AI Civil Engineering Infrastructure Inspector for Municipal Smart Cities.
-Inspect this photograph with maximum rigor.
-STEP 1: Determine if this photograph depicts a GENUINE urban public infrastructure defect (e.g. asphalt road pothole, road crater, pressurized water main rupture, bridge/flyover concrete crack, illegal commercial waste heap, broken streetlight/wire shock hazard, or broken civic solar array).
+Inspect this photograph with maximum rigor using two core verification pillars:
+
+PILLAR 1: Determine if this photograph depicts a GENUINE urban public infrastructure defect (e.g. asphalt road pothole, road crater, pressurized water main rupture, bridge/flyover concrete crack, illegal commercial waste heap, broken streetlight/wire shock hazard, or broken civic solar array).
 If this image is an ANIMAL (dog, cat, pet, cow, bird, etc.), a person, a selfie, food, indoor furniture, a vehicle interior, artwork, or any non-infrastructure object:
 Return strictly:
 {
   "isValidHazard": false,
   "confidence": 99.0,
+  "isAiGenerated": false,
   "detectedObject": "<short name of what is shown, e.g. Domestic Dog, Domestic Cat, Human Face, Food, Room>",
   "rejectionReason": "Photograph depicts an animal or non-infrastructure object, not a municipal civil hazard."
 }
 
-STEP 2: ONLY if the photograph is a REAL infrastructure defect, return:
+PILLAR 2: Check for SYNTHETIC / AI-GENERATED FAKES (e.g. Midjourney, DALL-E, Stable Diffusion hyper-smoothness, unnatural texture blending, frequency noise anomalies, or prompt hallmarks).
+If it is an AI-generated synthetic fake:
+Return strictly:
+{
+  "isValidHazard": false,
+  "confidence": 95.0,
+  "isAiGenerated": true,
+  "detectedObject": "Synthetic AI Pothole/Defect",
+  "rejectionReason": "FRAUD ALERT: Detected synthetic generative artifacts. Image was synthesized using an AI image generator (e.g. Midjourney / DALL-E)."
+}
+
+STEP 3: ONLY if the photograph is a REAL authentic camera capture of an infrastructure defect, return:
 {
   "isValidHazard": true,
   "confidence": number (between 88 and 99.5),
+  "isAiGenerated": false,
   "hazardType": exactly one of ["pothole", "water_leak", "structural_crack", "illegal_waste", "electrical_hazard", "solar_infrastructure"],
   "hazardLabel": string (concise civil engineering defect title),
   "detectedFeatures": array of 3 to 4 specific engineering visual defect observations,
@@ -134,7 +165,7 @@ STEP 2: ONLY if the photograph is a REAL infrastructure defect, return:
   "carbonPenaltyKgPerDay": number,
   "estimatedCost": integer (in INR),
   "isDuplicate": false
-}`;
+};`;
 
       // A. Try Google Gemini Flash Vision
       if (geminiApiKey) {
@@ -168,11 +199,15 @@ STEP 2: ONLY if the photograph is a REAL infrastructure defect, return:
             if (raw) {
               const parsed = JSON.parse(raw.replace(/```json/g, '').replace(/```/g, '').trim());
               if (parsed.isValidHazard === false) {
+                const isFake = parsed.isAiGenerated === true;
                 return NextResponse.json({
                   success: false,
                   isValidHazard: false,
-                  detectedObject: parsed.detectedObject || 'Animal / Non-hazard',
-                  error: `AI Vision Rejected: This image does not show a municipal infrastructure hazard (Detected: ${parsed.detectedObject || 'Animal / Non-hazard'}). Please upload a genuine photo of a civic defect.`
+                  isAiGenerated: isFake,
+                  detectedObject: parsed.detectedObject || (isFake ? 'Synthetic AI-Generated Pothole' : 'Animal / Non-hazard'),
+                  error: isFake
+                    ? `AI Fraud Alert: Detected synthetic AI-generated image (${parsed.detectedObject || 'Diffusion Artifacts'}). InfraPulse AI strictly prohibits AI-generated road defects to prevent fraudulent civic claims.`
+                    : `AI Vision Rejected: This image does not show a municipal infrastructure hazard (Detected: ${parsed.detectedObject || 'Animal / Non-hazard'}). Please upload a genuine photo of a civic defect.`
                 }, { status: 422 });
               }
               if (parsed.isValidHazard === true && parsed.hazardType) {
@@ -217,11 +252,15 @@ STEP 2: ONLY if the photograph is a REAL infrastructure defect, return:
             if (content) {
               const parsed = JSON.parse(content);
               if (parsed.isValidHazard === false) {
+                const isFake = parsed.isAiGenerated === true;
                 return NextResponse.json({
                   success: false,
                   isValidHazard: false,
-                  detectedObject: parsed.detectedObject || 'Animal / Non-hazard',
-                  error: `AI Vision Rejected: This image does not show a municipal infrastructure hazard (Detected: ${parsed.detectedObject || 'Animal / Non-hazard'}). Please upload a genuine photo of a civic defect.`
+                  isAiGenerated: isFake,
+                  detectedObject: parsed.detectedObject || (isFake ? 'Synthetic AI-Generated Pothole' : 'Animal / Non-hazard'),
+                  error: isFake
+                    ? `AI Fraud Alert: Detected synthetic AI-generated image (${parsed.detectedObject || 'Diffusion Artifacts'}). InfraPulse AI strictly prohibits AI-generated road defects to prevent fraudulent civic claims.`
+                    : `AI Vision Rejected: This image does not show a municipal infrastructure hazard (Detected: ${parsed.detectedObject || 'Animal / Non-hazard'}). Please upload a genuine photo of a civic defect.`
                 }, { status: 422 });
               }
               if (parsed.isValidHazard === true && parsed.hazardType) {

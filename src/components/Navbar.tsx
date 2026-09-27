@@ -5,7 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import {
   Smartphone,
   Leaf,
-  LogOut
+  LogOut,
+  ScanEye
 } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -13,6 +14,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 interface NavbarProps {
   onOpenMobileQr: () => void;
   onOpenImpact: () => void;
+  onOpenSimulator?: () => void;
   activeFilter: string;
   setActiveFilter: (filter: string) => void;
   totalActiveHazards: number;
@@ -21,6 +23,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   onOpenMobileQr,
   onOpenImpact,
+  onOpenSimulator,
   activeFilter,
   setActiveFilter,
   totalActiveHazards
@@ -46,6 +49,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center gap-2 shrink-0">
           {/* Light / Dark Mode Toggle Button */}
           <ThemeToggle />
+
+          {/* AI Simulator Button (Opens Road Damage & Image Verification Simulator) */}
+          {onOpenSimulator && (
+            <button
+              onClick={onOpenSimulator}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-300 dark:border-indigo-500/40 text-indigo-800 dark:text-indigo-300 transition-all cursor-pointer shadow-xs"
+              title="Test Road Damage & Image Verification Simulator"
+            >
+              <ScanEye className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="font-bold">AI Simulator</span>
+            </button>
+          )}
 
           {/* Impact Section Button (Opens Full Page Impact View) */}
           <button

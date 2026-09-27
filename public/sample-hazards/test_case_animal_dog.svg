@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" width="100%" height="100%">
+  <defs>
+    <linearGradient id="warmBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#451a03"/>
+      <stop offset="50%" stop-color="#78350f"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="furGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="50%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+    <radialGradient id="eyeGrad" cx="35%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#78350f"/>
+      <stop offset="80%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Domestic Warm Indoor Floor / Carpet -->
+  <rect width="800" height="600" fill="url(#warmBg)"/>
+  
+  <!-- Living room rug pattern -->
+  <rect x="80" y="380" width="640" height="180" rx="16" fill="#713f12" opacity="0.6"/>
+  <circle cx="400" cy="470" r="120" fill="#a16207" opacity="0.4"/>
+
+  <!-- Domestic Pet - Golden Dog Illustration -->
+  <!-- Dog Torso / Chest -->
+  <path d="M 280 500 C 280 380, 360 340, 440 340 C 520 340, 580 400, 580 500 Z" fill="url(#furGrad)"/>
+
+  <!-- Dog Head -->
+  <ellipse cx="400" cy="270" rx="120" ry="110" fill="url(#furGrad)"/>
+  
+  <!-- Dog Floppy Ears -->
+  <path d="M 290 220 C 250 240, 240 330, 280 370 C 300 390, 320 350, 310 280 Z" fill="#92400e"/>
+  <path d="M 510 220 C 550 240, 560 330, 520 370 C 500 390, 480 350, 490 280 Z" fill="#92400e"/>
+
+  <!-- Dog Muzzle -->
+  <ellipse cx="400" cy="310" rx="60" ry="50" fill="#fde68a"/>
+  <!-- Nose -->
+  <path d="M 380 290 Q 400 280 420 290 Q 400 320 380 290 Z" fill="#18181b"/>
+  <!-- Mouth line -->
+  <path d="M 400 310 L 400 325 M 400 325 Q 380 340 365 330 M 400 325 Q 420 340 435 330" stroke="#18181b" stroke-width="4" stroke-linecap="round" fill="none"/>
+  
+  <!-- Eyes -->
+  <ellipse cx="355" cy="250" rx="14" ry="16" fill="url(#eyeGrad)"/>
+  <circle cx="351" cy="245" r="4" fill="#ffffff"/>
+  <ellipse cx="445" cy="250" rx="14" ry="16" fill="url(#eyeGrad)"/>
+  <circle cx="441" cy="245" r="4" fill="#ffffff"/>
+
+  <!-- Eyebrows (Warm expressive expression) -->
+  <path d="M 340 230 Q 360 220 375 230" stroke="#78350f" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M 425 230 Q 440 220 460 230" stroke="#78350f" stroke-width="5" stroke-linecap="round" fill="none"/>
+
+  <!-- AI Vision Detection HUD Overlay -->
+  <rect x="220" y="140" width="370" height="380" rx="12" fill="none" stroke="#f97316" stroke-width="3" stroke-dasharray="10 6"/>
+  <rect x="220" y="95" width="370" height="38" rx="6" fill="#ea580c"/>
+  <text x="235" y="120" font-family="monospace" font-size="13" font-weight="bold" fill="#ffffff">⚠️ MISMATCH: CANIS_FAMILIARIS [99.4%]</text>
+  <text x="235" y="545" font-family="monospace" font-size="12" font-weight="bold" fill="#fdba74">CLASSIFICATION: DOMESTIC_PET | REJECTED</text>
+</svg>

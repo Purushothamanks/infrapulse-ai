@@ -57,6 +57,27 @@ export interface AIAnalysisResult {
   isValidHazard?: boolean;
   rejectionReason?: string;
   detectedObject?: string;
+  isAiGenerated?: boolean;
+  verification?: VerificationTelemetry;
+}
+
+export interface VerificationTelemetry {
+  verdict: 'APPROVED' | 'REJECTED';
+  authenticityScore: number; // 0 - 100
+  relevanceScore: number; // 0 - 100
+  noiseArtifactScore: number; // 0 - 100 (high = synthetic diffusion artifact)
+  isAiGenerated: boolean;
+  isValidHazard: boolean;
+  detectedObject: string;
+  rejectionType?: 'MISMATCHED_SUBJECT' | 'AI_GENERATED_FAKE' | 'POOR_QUALITY' | null;
+  rejectionReason?: string;
+  pipelineAudit: Array<{
+    stepNumber: number;
+    title: string;
+    status: 'PASSED' | 'FAILED' | 'FLAGGED';
+    details: string;
+    modelUsed: string;
+  }>;
 }
 
 export interface WorkOrder {
