@@ -20,7 +20,9 @@ import {
   Inbox,
   LogIn,
   UserPlus,
-  SendHorizontal
+  SendHorizontal,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 const AUTHORIZED_ADMIN_EMAILS = ['mygovtaihub@gmail.com'];
@@ -34,10 +36,11 @@ export const AuthView: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
   const [step, setStep] = useState<'input' | 'verify'>('input');
 
-  // Form Fields
+  // Form Fields - All start completely empty
   const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>('mygovtaihub@gmail.com');
+  const [email, setEmail] = useState<string>('');
   const [cardNumber, setCardNumber] = useState<string>('');
+  const [showCardNumber, setShowCardNumber] = useState<boolean>(false);
   const [otpCode, setOtpCode] = useState<string>('');
 
   // Status & Loaders
@@ -64,6 +67,8 @@ export const AuthView: React.FC = () => {
     setSuccessMessage('');
     setDevCodeHint(null);
     setOtpCode('');
+    setCardNumber('');
+    setEmail('');
   };
 
   const handleRoleChange = (role: UserRole) => {
@@ -74,12 +79,8 @@ export const AuthView: React.FC = () => {
     setDevCodeHint(null);
     setOtpCode('');
     setCardNumber('');
-    if (role === 'admin') {
-      setEmail('mygovtaihub@gmail.com');
-    } else {
-      setEmail('');
-      setName('');
-    }
+    setEmail('');
+    setName('');
   };
 
   // 1. ADMIN LOGIN WITH PERMANENT CARD NUMBER (NO OTP REQUIRED)
@@ -91,13 +92,18 @@ export const AuthView: React.FC = () => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanCard = cardNumber.trim();
 
+    if (!cleanEmail) {
+      setErrorMessage('Please enter your authorized municipal email.');
+      return;
+    }
+
     if (!isAuthorizedAdmin(cleanEmail)) {
-      setErrorMessage('Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue, reach: mygovtaihub@gmail.com');
+      setErrorMessage('Access Denied: Only authorized municipal officials are permitted to access the Official Command Center.');
       return;
     }
 
     if (!cleanCard) {
-      setErrorMessage('Please enter your Permanent Municipal Security Card Number.');
+      setErrorMessage('Please enter your Municipal Security Card Number.');
       return;
     }
 
@@ -125,8 +131,13 @@ export const AuthView: React.FC = () => {
 
     const cleanEmail = email.trim().toLowerCase();
 
+    if (!cleanEmail) {
+      setErrorMessage('Please enter your authorized municipal email above before requesting card issuance.');
+      return;
+    }
+
     if (!isAuthorizedAdmin(cleanEmail)) {
-      setErrorMessage('Unauthorized: Only designated municipal administrators can receive an official security card. Contact: mygovtaihub@gmail.com');
+      setErrorMessage('Unauthorized: Only designated municipal administrators can receive an official security card.');
       return;
     }
 
@@ -136,7 +147,7 @@ export const AuthView: React.FC = () => {
       const res = await issueAdminCard(cleanEmail);
 
       if (res.success) {
-        setSuccessMessage(res.message || `Permanent Security Card dispatched to ${cleanEmail}. Please check your email and enter your card number above.`);
+        setSuccessMessage(res.message || `Permanent Security Card dispatched to your email. Please check your inbox and enter your card number above.`);
       } else {
         setErrorMessage(res.error || 'Failed to dispatch Security Card email.');
       }
@@ -404,7 +415,7 @@ export const AuthView: React.FC = () => {
           {/* ============================================================ */}
           {selectedRole === 'admin' ? (
             <form onSubmit={handleAdminCardLogin} className="space-y-4">
-              {/* Email Field */}
+              {/* Email Field - Starts completely blank, generic placeholder */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
                   Authorized Municipal Email <span className="text-red-500">*</span>
@@ -416,35 +427,38 @@ export const AuthView: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="mygovtaihub@gmail.com"
-                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200 font-mono text-xs"
+                    placeholder="Enter authorized municipal email"
+                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200 text-xs"
                   />
                 </div>
               </div>
 
-              {/* Permanent Card Number Field */}
+              {/* Permanent Card Number Field - Masked & Hidden with Toggle */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Enter Your Card Number <span className="text-red-500">*</span>
-                  </label>
-                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                    Permanent Security Number
-                  </span>
-                </div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Enter Your Card Number <span className="text-red-500">*</span>
+                </label>
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
                   <CreditCard className="w-5 h-5 text-emerald-500 shrink-0" />
                   <input
-                    type="text"
+                    type={showCardNumber ? 'text' : 'password'}
                     required
                     value={cardNumber}
                     onChange={(e) => setCardNumber(e.target.value.toUpperCase())}
-                    placeholder="TN-MUNI-XXXX-XXXX"
-                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100 font-mono tracking-wider uppercase font-bold text-xs"
+                    placeholder="••••••••••••••••"
+                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100 font-mono tracking-widest uppercase font-bold text-xs"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowCardNumber(!showCardNumber)}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1 shrink-0"
+                    title={showCardNumber ? 'Hide card number' : 'Show card number'}
+                  >
+                    {showCardNumber ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
-                  Enter the permanent card number dispatched to your official email.
+                  Enter the card number dispatched to your official email.
                 </span>
               </div>
 
@@ -455,7 +469,7 @@ export const AuthView: React.FC = () => {
                   <span>First time logging in or don't have your card?</span>
                 </div>
                 <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Your card number is generated once and sent to your email. Click below to issue and dispatch your <strong>Permanent Municipal Security Card</strong> to <strong className="font-mono text-emerald-800 dark:text-emerald-300">mygovtaihub@gmail.com</strong>.
+                  Enter your email above, then click below to generate and dispatch your <strong>Permanent Municipal Security Card</strong> to your inbox.
                 </p>
                 <button
                   type="button"
