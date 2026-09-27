@@ -319,6 +319,61 @@ git push origin main
    - Reloaded PM2 process 0 (`pm2 restart 0 --update-env`).
    - Verified live HTTPS endpoint: `HTTP/1.1 200 OK` on `https://3.6.172.250.nip.io`.
 
+---
+
+## 15. Instant AI Real vs. Fake Verification, Mandatory Admin OTP on Every Visit, Professional Government Email Redesign & `/logo.png` Integration
+
+### A. Instant Real vs. Fake Verification on Citizen Photo Post
+1. **Removed Standalone Simulator:**
+   - Removed the "AI Simulator" button from the top navigation bar across both Admin and Citizen pages.
+   - Removed `src/components/VerificationSimulatorModal.tsx` and all references in `page.tsx`.
+2. **Direct Ingestion Verification Engine:**
+   - Embedded instant dual-pillar verification directly into Step 2 of the Citizen Defect Lodgement flow (`src/components/CitizenPortal.tsx`).
+   - The moment a citizen snaps a photo from the live camera, selects a category, or uploads a gallery file:
+     - Real-time animated scanning HUD activates over the photo preview: `⚡ Dual-Pillar AI: Checking Real vs Fake...`.
+     - Analyzes Bayer camera sensor noise, frequency gradients, and generative latent diffusion artifacts (Midjourney, DALL-E, Stable Diffusion).
+     - Renders an instant verdict badge on the photo:
+       - `✓ REAL DEFECT VERIFIED` (e.g., 98.6% Authentic Optical Capture)
+       - `🚨 REJECTED: SYNTHETIC AI-GENERATED FAKE` (with diffusion anomaly alerts)
+       - `⚠️ REJECTED: NON-INFRASTRUCTURE PHOTO` (for pets, domestic animals, selfies, or indoor furniture)
+     - Displays a rich real-time diagnostics card below the photo showing Optical Authenticity %, Civil Relevance %, and Synthetic Risk Index.
+     - Automatically locks the **"Submit Grievance"** button if the image is detected as synthetic AI or mismatched.
+
+### B. Mandatory Admin OTP Verification on Every App Visit
+1. **Zero Session Bypass on App Load (`src/context/AuthContext.tsx`):**
+   - Configured the session restoration logic to strictly purge and ignore `localStorage` tokens whenever `parsed.role === 'admin'`.
+   - Every time a municipal administrator visits or reloads the application, they MUST authenticate with a live 6-digit OTP.
+2. **Enforced Sign-In OTP Flow (`src/app/api/auth/signin/route.ts` & `src/components/AuthView.tsx`):**
+   - Removed passwordless direct sign-in for municipal admins in `POST /api/auth/signin`.
+   - Admin sign-in now automatically triggers OTP dispatch to `mygovtaihub@gmail.com` and directs the official to the OTP verification screen.
+
+### C. Ultra-Professional Government Email Format Redesign (`src/lib/mailer.ts`)
+- Overhauled all outgoing system emails to match the prestigious, dignified standards of the Government of Tamil Nadu Municipal Administration:
+  1. **Executive Government Header:** Deep forest green banner (`#064e3b`) featuring official typography: *GOVERNMENT OF TAMIL NADU - Municipal Administration & Urban Water Supply*.
+  2. **Clean Light Card Layout:** Universal white card on soft `#f8fafc` background with crisp `#cbd5e1` borders.
+  3. **Official OTP Passcode Email:** High-clarity monospace passcode box with 10-minute validity indicator, authorized official ID, and security notices.
+  4. **Municipal Incident Dispatch Alert:** Clean executive incident table with ID, defect category, address, ward, GPS coordinates, reporting citizen contact, and realtime Ai Prediction Budget (INR), plus a prominent direct command center link.
+  5. **Civic Resolution Status Update:** Includes certified completion notice, assigned contractor unit, Ai Prediction Budget, and attached official completion PDF certificate docket.
+  6. **Official Department Footer:** Includes physical government address (Ezhilagam Complex, Chepauk, Chennai - 600005) and automated notification disclaimer.
+
+### D. Logo Migration to `/logo.png` & Removal of `/vercel.svg`
+- Deleted default Next.js `public/vercel.svg`.
+- Updated all logo references to `/logo.png` (463x406 RGBA asset) across `Navbar.tsx`, `AuthView.tsx`, `CitizenPortal.tsx`, and `layout.tsx` metadata icons.
+
+### E. Live Verification & Production Deployment
+1. **Live SMTP Delivery Verification:**
+   - Official OTP Email Message ID: `<1beec0f9-3f5d-8e91-1aeb-8741abed4c50@gmail.com>`
+   - Incident Alert Email Message ID: `<4c972f98-49a7-3d39-2e08-1e89a7a836a4@gmail.com>`
+   - Completion Email with PDF Message ID: `<3bdc7d4d-24c9-036c-dcea-6ea78629e3ef@gmail.com>`
+2. **Git Commit & Push:**
+   - Commit `09cf69a` pushed to GitHub `origin/main`.
+3. **AWS EC2 Production Deployment:**
+   - Synced with `--delete` to AWS EC2 `3.6.172.250`.
+   - Rebuilt Next.js production build (`Compiled successfully in 54s`).
+   - Reloaded PM2 process 0 (`pm2 restart 0 --update-env`, PID `30460`).
+   - Verified live HTTPS endpoint: `HTTP/1.1 200 OK` on `https://3.6.172.250.nip.io`.
+
+
 
 
 
