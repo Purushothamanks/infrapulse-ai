@@ -1,7 +1,7 @@
 # MyGovt AI Hub / InfraPulse AI - Hackathon Development Session Notes
 
-> **Generated on:** September 25, 2026, 21:53 IST  
-> **Status:** Passed Round 1 • Preparing for Final Round Presentation  
+> **Last Updated:** September 27, 2026, 15:25 IST  
+> **Status:** Live & Production Ready • AWS EC2 Synchronized  
 > **Live Production Server:** [https://3.6.172.250.nip.io](https://3.6.172.250.nip.io)  
 > **GitHub Repository:** [https://github.com/Purushothamanks/infrapulse-ai](https://github.com/Purushothamanks/infrapulse-ai) (Branch: `main`)
 
@@ -12,368 +12,58 @@
 - **Server IP:** `3.6.172.250` (AWS EC2 Ubuntu 24.04 LTS)
 - **Domain:** `3.6.172.250.nip.io`
 - **Reverse Proxy:** Nginx with Let's Encrypt SSL certificate (`/etc/letsencrypt/live/3.6.172.250.nip.io/`)
-- **Process Manager:** PM2 running Next.js 15 on port 3000 (`pm2 reload 0`)
+- **Process Manager:** PM2 running Next.js 16 on port 3000 (`pm2 restart 0 --update-env`)
 - **SSH Access:** `ssh 3.6.172.250` (Configured in `~/.ssh/config` using `/home/purushothaman/Videos/Projects/LAF-Rebuild/Final-Pro-Key.pem`)
-- **Git User:** `K S Purushothaman <purushothamanks1711@gmail.com>`
-- **GitHub PAT:** Authenticated with GitHub credential store (`~/.git-credentials`)
+- **Brand Assets:** Clean `/logo.png` (replaces deprecated vercel.svg)
 
 ---
 
 ## 2. Admin & User Authentication Specifications
 
-### A. Municipal Administrator
-- **Authorized Email:** `purushothamank.s799@gmail.com` *(Strictly enforced - no other email is granted admin privileges)*
-- **Government Official ID:** `TN-SAMPLE-2026`
-- **Official Name:** `K. S. Purushothaman`
-- **Department:** `Tamil Nadu Municipal Administration & Urban Water Supply`
-- **Title Rule:** The word `"Commissioner"` has been completely purged from the codebase, sessions, and emails.
-- **Support Contact displayed in UI:** `For any issue , reach : purushothamank.s799@gmail.com`
+### A. Municipal Administrator Login (No OTP • Permanent Card Number)
+- **Authorized Email:** `mygovtaihub@gmail.com`
+- **Authentication Method:** **Permanent Municipal Security Card Number** (e.g. `TN-MUNI-XXXX-XXXX`).
+- **No OTP on Every Login:** Admin no longer enters an OTP when logging in. Instead, Admin enters their authorized email and their **Permanent Security Card Number**.
+- **1st-Time Card Issuance:**
+  - On first-time login or if the admin needs their card, they click **"Issue / Email My Permanent Security Card"**.
+  - A permanent card number (format: `TN-MUNI-XXXX-XXXX`) is issued and saved permanently for that email.
+  - An official security card email with an executive digital card graphic is dispatched to `mygovtaihub@gmail.com`.
+  - That card number is permanent and used for all future logins.
 
-### B. Sign In vs Sign Up Mechanics (`src/components/AuthView.tsx`)
-1. **Sign In Mode (`authMode === 'signin'`)**:
-   - **For Returning Admin:** Admin enters `purushothamank.s799@gmail.com` and clicks *"Sign In as Municipal Admin"*. Immediate 1-click login without OTP!
-   - **For Returning Citizen:** Citizen enters their email (e.g. `arjun.verma@gmail.com` or previously verified email) and clicks *"Sign In to Citizen Portal"*. Immediate login without OTP!
-   - **Unregistered Emails:** If an unknown email attempts to Sign In, the UI informs them: *"Account not registered yet. Please select the 'Sign Up (1st Time Only)' tab to complete one-time email OTP verification."*
-2. **Sign Up Mode (`authMode === 'signup'`)**:
-   - Dedicated exclusively for **1st-time new users**.
-   - Citizens provide Full Name & Email.
-   - Dispatches a 6-digit OTP via real **Gmail SMTP**.
-   - Admin registration requires both the 6-digit OTP and Government Official ID `TN-SAMPLE-2026`.
-   - On successful verification, the account is stored permanently in `src/lib/userStore.ts` (`/tmp/mygovt_registered_users.json`), allowing instant future logins via the Sign In tab.
+### B. Civilian Citizen Authentication
+- **Sign In:** Enter registered email (e.g. `arjun.verma@gmail.com` or citizen email) -> direct login.
+- **Sign Up (1st Time Only):** Enter Full Name & Email -> 6-digit OTP verification email sent -> enter OTP -> registered.
+
+### C. Fresh Reset
+- Temporary user sessions and stores (`/tmp/mygovt_registered_users.json*`) have been cleared on both local machine and EC2 server so all users can start fresh from the beginning.
 
 ---
 
-## 3. Real-Time SMTP Email Services (`src/lib/mailer.ts`)
+## 3. Email Infrastructure & Ultra-Clean Executive Format (`src/lib/mailer.ts`)
 
-- **Host:** `smtp.gmail.com` (Port 465 SSL)
-- **Account:** `purushothamank.s799@gmail.com`
-- **Credentials:** Configured in `.env.local` locally and on the server.
-- **Key Email Notifications:**
-  1. `sendOtpEmail`: Sends the 6-digit verification code (and Government Official ID `TN-SAMPLE-2026` for admin).
-  2. `sendGrievanceStatusEmail`: Automated email dispatched to the citizen whenever an admin changes grievance stage to `In progress` or `Completed`, or generates a work order docket.
+### Redesigned Modern Minimalist Templates
+All email templates have been redesigned from heavy government tables to an ultra-clean executive standard (Stripe / Apple / Gov.uk aesthetic):
+- Subtle neutral background (`#f8fafc`), clean 16px rounded card, delicate 1px border (`#e2e8f0`), soft shadow.
+- High-contrast typography with system fonts.
+- Clean key-value dossier rows with subtle borders.
+- Pill status badges (`Completed & Resolved`, `In Progress`, `Critical Severity`).
 
----
+### Email Types:
+1. **Permanent Municipal Security Card (`sendAdminSecurityCardEmail`):**
+   - Dispatches a digital Security Card graphic with the permanent Card Number (`TN-MUNI-XXXX-XXXX`).
+   - Addressed to `mygovtaihub@gmail.com`.
+2. **Citizen OTP Verification (`sendOtpEmail`):**
+   - Clean 6-digit verification code block for 1st-time citizen registration.
+3. **Grievance Status Update (`sendGrievanceStatusEmail`):**
+   - Dispatched to citizen when stage is updated (`In progress` or `Completed`).
+   - Displays: Incident title, location, ward, `Ai Prediction Budget (INR): ₹X (Realtime price detected by AI)`.
+   - Attaches official **Completion Report PDF Certificate** when marked as `Completed`.
+4. **Immediate Admin Alert (`sendNewHazardAdminAlertEmail`):**
+   - Dispatched to `mygovtaihub@gmail.com` immediately whenever a citizen logs a new hazard.
+   - Includes real-time AI budget prediction, coordinates, citizen contact, and direct link to command center.
 
-## 4. Automated Citizen Grievance Tracking Pipeline
-
-- **Reporting (`src/components/CitizenPortal.tsx`):**
-  - When a citizen lodges a complaint, their email (`user.email`) is attached to `newReport.citizenEmail`.
-  - Report syncs across devices via `/api/hazards`.
-- **Review & Stage Update (`src/components/HazardInspectorModal.tsx`):**
-  - Municipal Admin inspects the incident on the GIS map or queue.
-  - When the admin switches stage to **"In progress"** or **"Completed"**, or clicks **"Generate Work Order"**, the client dispatches a POST request to `/api/notifications/status-update`.
-  - A real email notification is immediately delivered to the citizen's inbox with:
-    - Incident Title & Grievance ID
-    - Live Status Badge (`IN PROGRESS` or `COMPLETED & RESOLVED`)
-    - Exact Location & Municipal Ward
-    - Assigned Contractor & SLA Dispatch Window
-    - Authorized Officer: `K. S. Purushothaman (Municipal Administration)`
-  - Confirmation toast appears in modal: `Automated email notification sent to <citizen-email> (<stage>)`.
-
----
-
-## 5. Top Navbar Design (`src/components/Navbar.tsx`)
-
-- Redundant dropdown removed.
-- Prominent Admin profile pill: `K. S. Purushothaman` • `Municipal Admin`.
-- **Outside Logout Button:** Directly visible and clickable right next to the profile pill in the top navbar (`<button onClick={logout}>` with `LogOut` icon).
-
----
-
-## 6. Real Multimodal AI Vision & Work Orders
-
-1. **Gemini Flash Vision (`/api/analyze-hazard`):**
-   - True pixel analysis evaluating asphalt sub-base erosion, radial rim cracking, crater depth, and CO2 penalty.
-   - Graceful fallback for synthetic offline testing.
-2. **Official Work Order Docket (`OfficialWorkOrderPdfModal.tsx`):**
-   - High-fidelity printable docket with QR code, contractor dispatch details, and digital signature by `K. S. Purushothaman`.
-
----
-
-## 7. Universal Real-Time Cross-Device Synchronization
-
-- **Persistent Cloud Backend (`src/lib/hazardStore.ts`):**
-  - Stores all incidents in persistent `data/hazards_store.json` with in-memory caching and atomic file writes.
-  - No longer relies solely on transient `/tmp`.
-- **Client-Side Image Auto-Compression (`src/components/CitizenPortal.tsx`):**
-  - High-res camera photos (5-15 MB) are automatically resized via offscreen HTML5 `<canvas>` to max 960px with 72% JPEG quality (~40-60 KB).
-  - Enables instant sub-second upload and prevents network timeouts/aborts on mobile.
-- **Snappy 2-Second Polling with Audio Chime (`src/app/page.tsx`):**
-  - Real-time polling every 2 seconds with `Cache-Control: no-store, no-cache`.
-  - ID-set diffing detects incoming hazards posted by any external phone or device.
-  - Synthesized Web Audio API dispatch chime plays when a live incident lands from mobile.
-  - Pops up the live incident banner: `🚨 Live Incident Synced from Mobile Device` with direct inspection action.
-- **Shared Live QR Code (`src/components/MobileQrModal.tsx`):**
-  - QR Code defaults directly to `https://3.6.172.250.nip.io` so mobile devices join the exact same cloud environment as the admin laptop.
-
----
-
-## 8. File Map & Key Locations
-
-| File | Purpose |
-| :--- | :--- |
-| `src/components/AuthView.tsx` | Sign In vs Sign Up tabs, clean input fields, contact note |
-| `src/context/AuthContext.tsx` | Client session state, `signIn()`, localStorage sanitization |
-| `src/components/Navbar.tsx` | Admin navbar with external Logout button, clean display name, and LIVE CLOUD SYNC badge |
-| `src/components/CitizenPortal.tsx` | Citizen lodging interface, image auto-compression, LIVE CLOUD SYNC badge |
-| `src/components/MobileQrModal.tsx` | QR code pointing by default to live cloud server |
-| `src/components/HazardInspectorModal.tsx` | Admin inspector modal, triggers status update emails |
-| `src/app/page.tsx` | Universal 2s cross-device incident sync, audio chime, live alert banner |
-| `src/app/api/hazards/route.ts` | Server hazard store endpoint with strict no-cache headers |
-| `src/app/api/auth/signin/route.ts` | Instant email sign-in for existing users & admin |
-| `src/app/api/auth/send-otp/route.ts` | 6-digit OTP dispatch via Gmail SMTP |
-| `src/app/api/auth/verify-otp/route.ts` | Verifies OTP and registers account in user store |
-| `src/app/api/notifications/status-update/route.ts` | Dispatches status change emails to citizens |
-| `src/lib/hazardStore.ts` | Persistent cloud database (`data/hazards_store.json`) with in-memory caching |
-| `src/lib/userStore.ts` | Persistent user registry (`/tmp/mygovt_registered_users.json`) |
-| `src/lib/mailer.ts` | Nodemailer SMTP implementation for OTP & status alerts |
-| `src/data/mockHazards.ts` | Seeded demo hazards pre-linked to `purushothamank.s799@gmail.com` |
-
----
-
-## 9. Deployment Workflow Command
-
-To deploy any future updates to the AWS live server without memory bottlenecks:
-
-```bash
-# 1. Sync files to AWS
-rsync -avz --exclude='node_modules' --exclude='.next' --exclude='.git' /home/purushothaman/infrapulse-ai/ 3.6.172.250:/home/ubuntu/infrapulse-ai/
-
-# 2. Build on AWS and reload PM2
-ssh 3.6.172.250 "cd /home/ubuntu/infrapulse-ai && rm -rf .next && npm run build && pm2 reload 0"
-
-# 3. Commit and push to GitHub
-cd /home/purushothaman/infrapulse-ai
-git add .
-git commit -m "your commit message"
-git push origin main
-```
-
----
-
-## 10. Community Civic Feed & AI Hazard Verification (Latest Update)
-
-### A. Community Civic Feed vs Personal Grievances Separation
-- **Personal Tracking (`activeTab === 'history'`):**
-  - Shows strictly the complaints lodged by the logged-in citizen (`hazard.citizenEmail === user.email`).
-  - When empty, displays a clean citizen-oriented guidance screen.
-  - Allows the citizen to inspect their personal 3-step progress bar (`1. Not started`, `2. In progress`, `3. Completed`) and withdraw/delete their complaint.
-- **Community Civic Feed (`activeTab === 'community'`):**
-  - Dedicated tab where citizens can explore public defects reported across all municipal wards.
-  - Interactive **Upvote / Endorse** button (`▲ Upvote (X)`) to let citizens support high-risk community complaints, instantly boosting municipal triage prioritization across all connected devices in real time.
-  - Category filters (`All`, `Potholes`, `Water Mains`, `Structural`, `Waste`, `Electrical`, `Solar`) + live search by street address, ward, or defect ID.
-- **4-Item Fixed Bottom Navigation Dock:**
-  1. `Raise` (Camera icon)
-  2. `My Reports` (Clock icon with badge showing count of personal grievances)
-  3. `Community` (Users icon with badge showing count of public incidents)
-  4. `Help & Support` (LifeBuoy icon opening official TN Government helpline modal)
-
-### B. AI Defect Verification & Animal / Non-Hazard Rejection
-- **Problem Solved:** Previously, unclassified uploads defaulted to a 92% confidence pothole, causing photos of animals/pets to be accepted into the municipal database.
-- **Strict Verification Architecture:**
-  1. **Keyword Pre-Screening:** Fast rejection if description contains animal keywords (`dog`, `cat`, `animal`, `pet`, `cow`, `buffalo`, `bird`, `monkey`, `snake`, etc.) or non-hazard terms (`selfie`, `person`, `food`, `sofa`, `furniture`, `room`, etc.).
-  2. **Client & Server Chromatic/Texture Verification:** Real-time analysis of pixel histograms comparing organic/warm fur & skin tones (`R > G + 22` and `R > B + 28`) against neutral roadway asphalt/concrete greys (`|R - G| < 22` and `|G - B| < 22`).
-  3. **Multimodal Cloud Vision Inspection:** Integrated with Google Gemini 1.5 Flash Vision / OpenAI Vision (`gpt-4o-mini`) via two-step verification prompt that strictly rejects non-infrastructure images with `{ "isValidHazard": false, "detectedObject": "..." }`.
-  4. **422 Rejection Response & Citizen Alert Modal:** If an image is flagged as an animal or non-hazard, `/api/analyze-hazard` responds with HTTP 422. `CitizenPortal` intercepts the rejection and renders a user-friendly alert modal explaining why the photo was rejected and prompting the citizen to upload a photo of an active municipal infrastructure defect.
-
----
-
-## 11. Clean UI, Admin Deletion & Detailed Post Inspection (Latest Release)
-
-### A. Removal of "LIVE CLOUD SYNC" Badges
-- Purged the blinking `"LIVE CLOUD SYNC"` indicator badges from both:
-  - **Citizen Desk** (`src/components/CitizenPortal.tsx` header)
-  - **Admin Navigation Bar** (`src/components/Navbar.tsx` top right)
-- Replaced with a cleaner, distraction-free municipal portal interface while retaining background real-time synchronization.
-
-### B. Admin Hazard Deletion
-- Municipal Admins can now permanently delete hazards directly from two convenient locations:
-  1. **Incident Queue Cards (`src/components/HazardQueue.tsx`):** A red trash icon appears next to the GPS locate button on every incident card.
-  2. **Incident Inspector Modal (`src/components/HazardInspectorModal.tsx`):** A prominent red `"Delete Incident"` button is available in the modal header.
-- Both deletion entry points include a confirmation dialog (`Are you sure you want to permanently delete incident #...? This action will remove the record from all municipal consoles.`) and immediately propagate deletion to the backend store via `DELETE /api/hazards?id=...` and update all connected devices.
-
-### C. Detailed Inspection After Posting & Community Place/Photo Views
-- **Instant Post-Submission Detailed Inspection:**
-  - Upon submitting a new hazard report in `CitizenPortal.tsx`, the interface transitions smoothly to the tracking view and automatically opens a comprehensive detail inspection modal (`selectedDetailHazard`).
-  - Displays the submitted photo, live municipal review status, GPS coordinates, detected severity, estimated repair cost, carbon penalty, suggested municipal protocol, and dimensions.
-- **Community & Personal Hazard Inspection:**
-  - Citizens can click any thumbnail in either the **"My Reports"** tab or the **"Community"** tab to open an uncropped high-resolution photo lightbox (`enlargedImage`).
-  - Added a **"View Place & Photo"** / **"Details"** button on every complaint card in both tabs, opening the full inspection view with:
-    - Full photo with zoom capability
-    - Exact street address, ward, and coordinates (Latitude/Longitude)
-    - One-click Google Maps navigation link (`https://www.google.com/maps/search/?api=1&query=lat,lng`)
-    - AI triage breakdown, contractor assignment, and municipal SLA status
-    - Community upvote action directly within the modal
-
----
-
-## 12. Permanent Dummy Hazard Removal & Empty State Fix
-
-### A. Root Cause of Auto-Reappearing Hazards
-- **Server Auto-Reseed Bug:** In `src/lib/hazardStore.ts`, `readStore()` previously checked `if (Array.isArray(parsed) && parsed.length > 0)`. Whenever all hazards were deleted (`parsed.length === 0`), it treated the file as empty and executed `writeStore(initialHazards)`, rewriting the 6 default mock hazards back to disk. Every 2-second client poll would then pick up the re-seeded hazards.
-- **Client Initial State:** In `src/app/page.tsx`, `useState<HazardReport[]>(initialHazards)` loaded the 6 dummy hazards on every mount before the first fetch completed.
-- **Hardcoded Mock Seed:** In `src/data/mockHazards.ts`, `initialHazards` contained the 6 static hazards `HZ-2026-9041` through `HZ-2026-9046`.
-
-### B. Changes & Fixes Applied
-1. **Empty Array is Valid:** Updated `readStore()` in `src/lib/hazardStore.ts` to accept `Array.isArray(parsed)` without checking `length > 0`. If all hazards are deleted, the store stays clean and empty `[]`.
-2. **Purged Dummy Seed:** In `src/data/mockHazards.ts`, cleared all 6 static hazards and set `export const initialHazards: HazardReport[] = []`.
-3. **Clean Client Mount:** In `src/app/page.tsx`, initialized state to `useState<HazardReport[]>([])` and added `hasInitializedRef` so the 2s live poller only chimes for newly arriving live hazards, not on initial mount.
-4. **"Clear All" Capability:** Added `DELETE /api/hazards?all=true` endpoint and a **"Clear All"** button in `HazardQueue.tsx` allowing municipal admins to wipe all incidents with a single confirmation.
-5. **Clean Server Storage:** Wiped `data/hazards_store.json` and transient caches on both local and EC2 production server.
-
----
-
-## 13. Dual-Pillar AI Verification Engine & Interactive Road Damage Simulator
-
-### A. Dual-Pillar AI Governance Pipeline
-1. **Pillar 1: Object Relevance & Classification (YOLOv8 + Vision LLM):**
-   - Strictly verifies that uploaded images depict legitimate municipal infrastructure defects (potholes, pressurized pipe bursts, structural shear cracks, illegal waste, streetlight hazards, solar arrays).
-   - Rejects **Mismatched Subjects** (pets/animals, selfies, indoor furniture, food, room interiors) with HTTP 422.
-2. **Pillar 2: Synthetic / AI-Generated Fake Image Detection (Spectral Residual Frequency Net):**
-   - Inspects frequency spectra, noise anomaly consistency, and generative diffusion artifacts (Midjourney, DALL-E, Stable Diffusion).
-   - Rejects synthetic fakes as **AI_GENERATED_FAKE** to prevent municipal bounty fraud or simulated nuisance complaints.
-3. **Automated Governance Verdict Engine:**
-   - Issues a binary **APPROVED** vs **REJECTED** verdict.
-   - Computes rich telemetry: `Optical Authenticity %`, `Civil Relevance %`, and `Synthetic Noise Risk Index`.
-
-### B. Interactive Road Damage & Image Verification Simulator (`src/components/VerificationSimulatorModal.tsx`)
-- Accessible in both **Admin Command Center** (`Navbar.tsx`) and **Citizen Portal** (`CitizenPortal.tsx`), as well as directly from the rejection alert modal.
-- Includes 5 interactive test cases + live custom upload:
-  1. `Case 1: Severe Road Crater` -> **APPROVED** (98.6% Authenticity, 97.4% Relevance).
-  2. `Case 2: Domestic Pet (Golden Dog)` -> **REJECTED: Mismatched Subject** (1.8% Relevance, 99.4% Animal detection).
-  3. `Case 3: AI-Generated Fake Pothole` -> **REJECTED: Synthetic AI Fraud** (95.2% Noise anomaly, diffusion latent markers).
-  4. `Case 4: Indoor Living Room / Sofa` -> **REJECTED: Non-Infrastructure** (3.1% Relevance, residential furniture).
-  5. `Case 5: Pressurized Water Main Rupture` -> **APPROVED** (99.2% Authenticity, 98.7% Relevance).
-- Features animated laser scanning overlay, real-time diagnostic progress bars, four-step inspection audit trail, and a live button to **inject verified defects directly into the municipal command center GIS grid**.
-
-### C. File Additions & Updates
-| File | Action | Purpose |
-| :--- | :--- | :--- |
-| `src/types/hazard.ts` | Updated | Added `VerificationTelemetry` interface and fields |
-| `src/app/api/verify-simulator/route.ts` | **Created** | Dual-pillar verification diagnostics API endpoint |
-| `src/components/VerificationSimulatorModal.tsx` | **Created** | Interactive visual simulator modal with 5 presets & custom upload |
-| `public/sample-hazards/test_case_animal_dog.svg` | **Created** | High-fidelity test asset for animal/pet mismatch |
-| `public/sample-hazards/test_case_ai_fake_pothole.svg` | **Created** | Test asset for synthetic generative AI fake detection |
-| `public/sample-hazards/test_case_indoor_room.svg` | **Created** | Test asset for indoor domestic non-hazard rejection |
-| `src/app/api/analyze-hazard/route.ts` | Updated | Added `AI_GENERATED_KEYWORDS` and dual-pillar vision prompt |
-| `src/components/Navbar.tsx` | Updated | Added "AI Simulator" button with `ScanEye` icon |
-| `src/components/CitizenPortal.tsx` | Updated | Added "AI Simulator" button in header & rejection alert modal |
-| `src/app/page.tsx` | Updated | Wired `VerificationSimulatorModal` to both citizen & admin states |
-
----
-
-## 14. AI Prediction Budget, Mobile My Reports Redesign, Admin Lodgement Alerts, Completion PDF Certificate & Email Migration
-
-### A. Removal of Legacy Computer Vision Markers & AI Prediction Budget
-1. **Removed Clutter:**
-   - Removed "Computer Vision Detected Markers", defect observation tags, "Environmental & SDG 11 Impact", carbon penalty text (`38.6 kg CO₂`), and "Suggested Municipal Protocol".
-2. **Added Realtime AI Prediction Budget:**
-   - Implemented: **"Ai Prediction Budget (INR)"** displaying the dynamically computed repair price (e.g. `₹12,500`) with explicit subtext: `(Realtime price detected by AI)`.
-   - Integrated into:
-     - Admin Inspector Modal (`src/components/HazardInspectorModal.tsx`)
-     - Citizen Detailed View Modal (`src/components/CitizenPortal.tsx`)
-     - Automated Admin Alert Emails (`src/lib/mailer.ts`)
-     - Automated Citizen Grievance Resolution Emails (`src/lib/mailer.ts`)
-     - Official Municipal Completion PDF Certificate (`src/lib/pdfReportGenerator.ts`)
-
-### B. Mobile-First Redesign of "My Reports" Section
-- Replaced the clunky "Personal Grievances" header that looked crowded and awkward on mobile screens.
-- Designed a sleek, modern, mobile-first card featuring:
-  - Clean title: **"My Filed Reports"** with live status indicator
-  - Dynamic count badge (e.g., `1 Report` / `N Reports`)
-  - Informative subtitle displaying the authenticated user's email
-  - Quick-action **"Report New Defect"** camera button visible on both mobile viewports and desktop
-
-### C. Automated Instant Admin Alert on Hazard Lodgement
-- When any citizen lodges a hazard via `POST /api/hazards`, the system immediately triggers `sendNewHazardAdminAlertEmail({ hazard })` asynchronously.
-- Dispatches a municipal command center alert directly to `mygovtaihub@gmail.com` with:
-  - Incident ID, title, category, and GPS coordinates
-  - Ward name and street location
-  - Citizen name and email
-  - Realtime AI Prediction Budget (INR)
-  - Direct quick link to open the municipal command center GIS grid
-
-### D. Automated Citizen Completion Email with Official PDF Certificate
-1. **Official PDF Docket Generator (`src/lib/pdfReportGenerator.ts`):**
-   - Engineered using `pdfkit` to generate vector PDF completion certificates.
-   - Includes Government of Tamil Nadu header banner, official work completion title, full grievance dossier, 4-point ASTM engineering clearance checklist, digital signature seal (SHA256), and authorized signatory.
-2. **Citizen Resolution Dispatch:**
-   - When an administrator marks a hazard status as `Completed`, `sendGrievanceStatusEmail` attaches the generated `Official_Completion_Report_[ID].pdf` and emails the reporting citizen.
-
-### E. Migration of Sender & Admin Alert Email to `mygovtaihub@gmail.com`
-- **Sender Email:** Changed all outgoing system communications to use `mygovtaihub@gmail.com` (`SMTP_FROM="MyGovt AI Hub" <mygovtaihub@gmail.com>`).
-- **Admin Alert Email:** Set to `mygovtaihub@gmail.com` (`ADMIN_ALERT_EMAIL=mygovtaihub@gmail.com`).
-- **Access Whitelist:** Updated `src/app/api/auth/send-otp/route.ts`, `src/app/api/auth/signin/route.ts`, `src/components/AuthView.tsx`, and `src/lib/userStore.ts` to authorize `mygovtaihub@gmail.com`. Removed legacy occurrences of `purushothamank.s799@gmail.com`.
-
-### F. Verification & Production Deployment
-1. **Live SMTP & PDF Delivery Test:**
-   - Admin Alert Email Message ID: `<fab05e89-65bc-f11f-0d42-ed9ebea7392e@gmail.com>`
-   - Completion Email with PDF Message ID: `<2da676ce-8d82-e075-c495-798e0d964448@gmail.com>` (3,275-byte vector PDF attached)
-2. **Git Commit & Push:**
-   - Commit `335fcbe` pushed to GitHub `origin/main`.
-3. **AWS EC2 Production Deployment:**
-   - Files synced via `rsync` to AWS EC2 `3.6.172.250`.
-   - Updated `.env.local` with `SMTP_FROM`, `SMTP_SENDER_EMAIL`, and `ADMIN_ALERT_EMAIL` set to `mygovtaihub@gmail.com`.
-   - Installed `pdfkit` and `@types/pdfkit`.
-   - Successfully compiled Next.js production build (`Compiled successfully in 53s`).
-   - Reloaded PM2 process 0 (`pm2 restart 0 --update-env`).
-   - Verified live HTTPS endpoint: `HTTP/1.1 200 OK` on `https://3.6.172.250.nip.io`.
-
----
-
-## 15. Instant AI Real vs. Fake Verification, Mandatory Admin OTP on Every Visit, Professional Government Email Redesign & `/logo.png` Integration
-
-### A. Instant Real vs. Fake Verification on Citizen Photo Post
-1. **Removed Standalone Simulator:**
-   - Removed the "AI Simulator" button from the top navigation bar across both Admin and Citizen pages.
-   - Removed `src/components/VerificationSimulatorModal.tsx` and all references in `page.tsx`.
-2. **Direct Ingestion Verification Engine:**
-   - Embedded instant dual-pillar verification directly into Step 2 of the Citizen Defect Lodgement flow (`src/components/CitizenPortal.tsx`).
-   - The moment a citizen snaps a photo from the live camera, selects a category, or uploads a gallery file:
-     - Real-time animated scanning HUD activates over the photo preview: `⚡ Dual-Pillar AI: Checking Real vs Fake...`.
-     - Analyzes Bayer camera sensor noise, frequency gradients, and generative latent diffusion artifacts (Midjourney, DALL-E, Stable Diffusion).
-     - Renders an instant verdict badge on the photo:
-       - `✓ REAL DEFECT VERIFIED` (e.g., 98.6% Authentic Optical Capture)
-       - `🚨 REJECTED: SYNTHETIC AI-GENERATED FAKE` (with diffusion anomaly alerts)
-       - `⚠️ REJECTED: NON-INFRASTRUCTURE PHOTO` (for pets, domestic animals, selfies, or indoor furniture)
-     - Displays a rich real-time diagnostics card below the photo showing Optical Authenticity %, Civil Relevance %, and Synthetic Risk Index.
-     - Automatically locks the **"Submit Grievance"** button if the image is detected as synthetic AI or mismatched.
-
-### B. Mandatory Admin OTP Verification on Every App Visit
-1. **Zero Session Bypass on App Load (`src/context/AuthContext.tsx`):**
-   - Configured the session restoration logic to strictly purge and ignore `localStorage` tokens whenever `parsed.role === 'admin'`.
-   - Every time a municipal administrator visits or reloads the application, they MUST authenticate with a live 6-digit OTP.
-2. **Enforced Sign-In OTP Flow (`src/app/api/auth/signin/route.ts` & `src/components/AuthView.tsx`):**
-   - Removed passwordless direct sign-in for municipal admins in `POST /api/auth/signin`.
-   - Admin sign-in now automatically triggers OTP dispatch to `mygovtaihub@gmail.com` and directs the official to the OTP verification screen.
-
-### C. Ultra-Professional Government Email Format Redesign (`src/lib/mailer.ts`)
-- Overhauled all outgoing system emails to match the prestigious, dignified standards of the Government of Tamil Nadu Municipal Administration:
-  1. **Executive Government Header:** Deep forest green banner (`#064e3b`) featuring official typography: *GOVERNMENT OF TAMIL NADU - Municipal Administration & Urban Water Supply*.
-  2. **Clean Light Card Layout:** Universal white card on soft `#f8fafc` background with crisp `#cbd5e1` borders.
-  3. **Official OTP Passcode Email:** High-clarity monospace passcode box with 10-minute validity indicator, authorized official ID, and security notices.
-  4. **Municipal Incident Dispatch Alert:** Clean executive incident table with ID, defect category, address, ward, GPS coordinates, reporting citizen contact, and realtime Ai Prediction Budget (INR), plus a prominent direct command center link.
-  5. **Civic Resolution Status Update:** Includes certified completion notice, assigned contractor unit, Ai Prediction Budget, and attached official completion PDF certificate docket.
-  6. **Official Department Footer:** Includes physical government address (Ezhilagam Complex, Chepauk, Chennai - 600005) and automated notification disclaimer.
-
-### D. Logo Migration to `/logo.png` & Removal of `/vercel.svg`
-- Deleted default Next.js `public/vercel.svg`.
-- Updated all logo references to `/logo.png` (463x406 RGBA asset) across `Navbar.tsx`, `AuthView.tsx`, `CitizenPortal.tsx`, and `layout.tsx` metadata icons.
-
-### E. Live Verification & Production Deployment
-1. **Live SMTP Delivery Verification:**
-   - Official OTP Email Message ID: `<1beec0f9-3f5d-8e91-1aeb-8741abed4c50@gmail.com>`
-   - Incident Alert Email Message ID: `<4c972f98-49a7-3d39-2e08-1e89a7a836a4@gmail.com>`
-   - Completion Email with PDF Message ID: `<3bdc7d4d-24c9-036c-dcea-6ea78629e3ef@gmail.com>`
-2. **Git Commit & Push:**
-   - Commit `09cf69a` pushed to GitHub `origin/main`.
-3. **AWS EC2 Production Deployment:**
-   - Synced with `--delete` to AWS EC2 `3.6.172.250`.
-   - Rebuilt Next.js production build (`Compiled successfully in 54s`).
-   - Reloaded PM2 process 0 (`pm2 restart 0 --update-env`, PID `30460`).
-   - Verified live HTTPS endpoint: `HTTP/1.1 200 OK` on `https://3.6.172.250.nip.io`.
-
-
-
-
-
+### Gmail SMTP Sender Identity Note:
+- In `.env.local`, `SMTP_FROM="MyGovt AI Hub" <mygovtaihub@gmail.com>`, `SMTP_SENDER_EMAIL=mygovtaihub@gmail.com`, and `ADMIN_ALERT_EMAIL=mygovtaihub@gmail.com`.
+- **Why Gmail showed `From: MyGovt AI Hub . purushothamank.s799@gmail.com`:**
+  Gmail's SMTP servers strictly inspect the login account. If authenticated using `purushothamank.s799@gmail.com`, Google's anti-spoofing automatically stamps the sender account.
+  To make emails display strictly and solely as `mygovtaihub@gmail.com`, an App Password must be created directly inside the `mygovtaihub@gmail.com` Google account at `https://myaccount.google.com/apppasswords`.
