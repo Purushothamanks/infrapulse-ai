@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "MyGovt AI Hub | Autonomous Urban Infrastructure Triage & Sustainable Cities",
   description: "AI-powered urban hazard computer vision inspection, geospatial triage, automated municipal dispatch, and UN SDG 11 sustainability copilot.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 import { Providers } from "@/components/Providers";

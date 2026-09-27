@@ -86,9 +86,12 @@ export const AuthView: React.FC = () => {
 
     if (selectedRole === 'admin') {
       if (!isAuthorizedAdmin(cleanEmail)) {
-        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to access the Official Command Center. For any issue , reach : mygovtaihub@gmail.com');
+        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to access the Official Command Center. For any issue, reach: mygovtaihub@gmail.com');
         return;
       }
+      // Official security policy: Admin login ALWAYS triggers live OTP verification every time!
+      await handleRequestOtp(e);
+      return;
     } else {
       if (!cleanEmail || !cleanEmail.includes('@')) {
         setErrorMessage('Please enter a valid email address.');
@@ -215,7 +218,7 @@ export const AuthView: React.FC = () => {
         <div className="text-center space-y-1.5">
           <div className="flex justify-center mb-1.5">
             <img
-              src="/logo.jpeg"
+              src="/logo.png"
               alt="MyGovt AI Hub Logo"
               className="h-14 sm:h-16 w-auto object-contain rounded-2xl shadow-md"
             />
@@ -304,7 +307,7 @@ export const AuthView: React.FC = () => {
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 {authMode === 'signin'
                   ? selectedRole === 'admin'
-                    ? 'Enter authorized email to access Command Center'
+                    ? 'Enter authorized email to receive live 6-digit OTP passcode'
                     : 'Enter your registered email to access portal'
                   : step === 'input'
                   ? 'Enter details to receive 2-Factor OTP verification'
@@ -412,7 +415,7 @@ export const AuthView: React.FC = () => {
                     <LogIn className="w-4 h-4" />
                     <span>
                       {selectedRole === 'admin'
-                        ? 'Sign In as Municipal Admin'
+                        ? 'Verify Official Identity & Send OTP'
                         : 'Sign In to Citizen Portal'}
                     </span>
                   </>

@@ -19,30 +19,26 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Municipal Admin Sign In
+    // 1. Municipal Admin Sign In - ALWAYS requires live OTP verification!
     if (selectedRole === 'admin' || isAuthorizedAdmin(cleanEmail)) {
       if (!isAuthorizedAdmin(cleanEmail)) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue , reach : mygovtaihub@gmail.com'
+            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue, reach: mygovtaihub@gmail.com'
           },
           { status: 403 }
         );
       }
 
-      const adminUser = getRegisteredUser(cleanEmail) || registerUser({
-        email: cleanEmail,
-        name: 'K. S. Purushothaman',
-        role: 'admin',
-        officialId: 'TN-SAMPLE-2026'
-      });
-
-      return NextResponse.json({
-        success: true,
-        user: adminUser,
-        message: 'Welcome back, Official K. S. Purushothaman.'
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          requiresOtp: true,
+          error: 'Official Security Protocol: Municipal Admin access requires live OTP verification every time. Please authenticate using the 6-digit OTP dispatched to your official email.'
+        },
+        { status: 401 }
+      );
     }
 
     // 2. Returning Civilian Citizen Sign In

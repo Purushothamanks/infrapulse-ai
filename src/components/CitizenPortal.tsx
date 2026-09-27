@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { HazardReport, HazardType, getHazardProgress } from '@/types/hazard';
+import { HazardReport, HazardType, getHazardProgress, VerificationTelemetry } from '@/types/hazard';
 import { LocationPickerMap } from './LocationPickerMap';
 import { ThemeToggle } from './ThemeToggle';
 import { TnGovHelpModal } from './TnGovHelpModal';
@@ -31,8 +31,7 @@ import {
   Filter,
   Eye,
   ExternalLink,
-  Maximize2,
-  ScanEye
+  Maximize2
 } from 'lucide-react';
 
 interface CitizenPortalProps {
@@ -40,7 +39,6 @@ interface CitizenPortalProps {
   onAddHazard: (newReport: HazardReport) => void;
   onDeleteHazard?: (hazardId: string) => void;
   onUpdateHazard?: (updated: HazardReport) => void;
-  onOpenSimulator?: () => void;
 }
 
 const CATEGORIES: Array<{
@@ -201,8 +199,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   hazards,
   onAddHazard,
   onDeleteHazard,
-  onUpdateHazard,
-  onOpenSimulator
+  onUpdateHazard
 }) => {
   const { user, logout } = useAuth();
 
@@ -229,6 +226,10 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   const [ward, setWard] = useState<string>('Ward 4 - East Tech Corridor');
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 12.9716, lng: 77.5946 });
 
+  // Instant Real vs Fake Image Verification State
+  const [isVerifyingImage, setIsVerifyingImage] = useState<boolean>(false);
+  const [imageVerification, setImageVerification] = useState<VerificationTelemetry | null>(null);
+
   // Live Camera State
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -238,6 +239,40 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisProgress, setAnalysisProgress] = useState<string>('');
   const [successSubmitted, setSuccessSubmitted] = useState<boolean>(false);
+
+  const runInstantVerification = async (imgData: string, sampleId?: string) => {
+    setIsVerifyingImage(true);
+    try {
+      let testCaseId: string | undefined = undefined;
+      if (sampleId === 'sample-pothole') testCaseId = 'test-real-pothole';
+      else if (sampleId === 'sample-water_leak') testCaseId = 'test-water-leak';
+
+      const res = await fetch('/api/verify-simulator', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: imgData,
+          testCaseId,
+          description
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.telemetry) {
+          setImageVerification(data.telemetry);
+        }
+      }
+    } catch (err) {
+      console.warn('Instant image verification failed:', err);
+    } finally {
+      setIsVerifyingImage(false);
+    }
+  };
+
+  useEffect(() => {
+    runInstantVerification('/sample-hazards/1_severe_pothole_crater.png', 'sample-pothole');
+  }, []);
 
   // 1. Separate Personal Grievances (strictly this civilian's account)
   const userEmail = (user?.email || '').trim().toLowerCase();
@@ -278,6 +313,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     setCurrentVisualMetrics(null);
     setAddress(cat.defaultAddress);
     setWard(cat.defaultWard);
+    runInstantVerification(cat.sampleFile, `sample-${cat.type}`);
   };
 
   const handleCustomFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,6 +326,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
         setSelectedImage(dataUrl);
         setCurrentVisualMetrics(visualMetrics || null);
         setSelectedSampleId('custom-upload');
+        runInstantVerification(dataUrl, 'custom-upload');
       } catch (err) {
         console.error('Image compression error:', err);
       } finally {
@@ -347,6 +384,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
       setSelectedImage(dataUrl);
       setCurrentVisualMetrics(visualMetrics || null);
       setSelectedSampleId('custom-upload');
+      runInstantVerification(dataUrl, 'custom-upload');
     }
     handleStopCamera();
   };
@@ -369,6 +407,17 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     try {
       const { dataUrl: finalImage, visualMetrics: finalMetrics } = await compressImageAndAnalyze(selectedImage);
       const metricsToSend = currentVisualMetrics || finalMetrics;
+
+      // Instant Real vs Fake Verification Guardrail
+      if (imageVerification && imageVerification.verdict === 'REJECTED') {
+        setIsAnalyzing(false);
+        setAnalysisProgress('');
+        setRejectionError({
+          detectedObject: imageVerification.detectedObject || (imageVerification.isAiGenerated ? 'Synthetic AI-Generated Fake Image' : 'Non-Infrastructure Subject'),
+          reason: imageVerification.rejectionReason || 'AI Verification Failed: The photo was flagged as an AI-generated fake or non-infrastructure scene. Real photographs of active municipal defects are strictly required.'
+        });
+        return;
+      }
 
       // Fast Client-Side Guardrail: Animal / Domestic / Pet rejection
       if (selectedSampleId === 'custom-upload' && metricsToSend?.isLikelyNonHazard) {
@@ -470,7 +519,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           {/* Brand Logo - Same as Admin Navbar */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <img
-              src="/logo.jpeg"
+              src="/logo.png"
               alt="MyGovt AI Hub Logo"
               className="h-9 sm:h-10 w-auto object-contain rounded-xl shadow-xs"
             />
@@ -483,18 +532,6 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Theme Toggle Button */}
             <ThemeToggle />
-
-            {/* AI Simulator Button (Interactive Road Damage & Image Verification Simulator) */}
-            {onOpenSimulator && (
-              <button
-                onClick={onOpenSimulator}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-300 dark:border-indigo-500/40 text-indigo-800 dark:text-indigo-300 transition-all cursor-pointer shadow-xs"
-                title="Open Dual-Pillar AI Road Damage & Image Verification Simulator"
-              >
-                <ScanEye className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                <span className="hidden sm:inline font-bold">AI Simulator</span>
-              </button>
-            )}
 
             {/* User Profile Tag */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs">
@@ -689,23 +726,127 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                     </div>
                   )}
 
-                  {/* Selected Image Preview */}
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-950 aspect-video flex items-center justify-center shadow-xs">
-                    {selectedImage ? (
-                      <>
-                        <img src={selectedImage} alt="Hazard preview" className="w-full h-full object-cover" />
-                        {isAnalyzing && (
-                          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center">
-                            <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-2" />
-                            <span className="text-xs font-mono font-bold text-emerald-300">{analysisProgress}</span>
-                          </div>
-                        )}
-                        <div className="absolute bottom-2 left-2 bg-slate-950/80 text-white backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-mono border border-slate-700">
-                          TARGET IMAGE READY FOR AI SCAN
+                  {/* Selected Image Preview & Real-Time Verification Scanner */}
+                  <div className="space-y-3">
+                    <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-950 aspect-video flex items-center justify-center shadow-xs">
+                      {selectedImage ? (
+                        <>
+                          <img src={selectedImage} alt="Hazard preview" className="w-full h-full object-cover" />
+
+                          {/* Animated Scanning Laser Overlay while analyzing */}
+                          {isVerifyingImage && (
+                            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center z-10">
+                              <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-pulse absolute top-1/2 -translate-y-1/2 shadow-[0_0_15px_#22d3ee]" />
+                              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                              <span className="text-xs font-mono font-bold text-cyan-200">
+                                ⚡ Dual-Pillar AI: Checking Real vs Fake...
+                              </span>
+                              <span className="text-[10px] text-cyan-300/80 font-mono mt-0.5">
+                                Scanning Bayer camera noise & generative diffusion artifacts
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Instant Verification Verdict Banner on Photo */}
+                          {!isVerifyingImage && imageVerification && (
+                            <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
+                              {imageVerification.verdict === 'APPROVED' ? (
+                                <div className="px-3 py-1.5 rounded-xl bg-emerald-950/90 border border-emerald-500 text-emerald-300 text-xs font-bold font-mono flex items-center gap-2 shadow-lg backdrop-blur-md">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                                  <span>REAL DEFECT VERIFIED ({imageVerification.authenticityScore}% AUTHENTIC)</span>
+                                </div>
+                              ) : imageVerification.isAiGenerated ? (
+                                <div className="px-3 py-1.5 rounded-xl bg-red-950/95 border-2 border-red-500 text-red-200 text-xs font-bold font-mono flex items-center gap-2 shadow-xl backdrop-blur-md animate-pulse">
+                                  <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                                  <span>🚨 REJECTED: SYNTHETIC AI-GENERATED FAKE</span>
+                                </div>
+                              ) : (
+                                <div className="px-3 py-1.5 rounded-xl bg-amber-950/95 border-2 border-amber-500 text-amber-200 text-xs font-bold font-mono flex items-center gap-2 shadow-xl backdrop-blur-md">
+                                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                                  <span>⚠️ REJECTED: NON-INFRASTRUCTURE PHOTO</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {isAnalyzing && (
+                            <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center z-20">
+                              <Loader2 className="w-8 h-8 text-emerald-400 animate-spin mb-2" />
+                              <span className="text-xs font-mono font-bold text-emerald-300">{analysisProgress}</span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-xs text-slate-500">No photo selected. Use Camera or Upload button above.</span>
+                      )}
+                    </div>
+
+                    {/* Instant AI Diagnostics Card under the photo */}
+                    {imageVerification && (
+                      <div
+                        className={`p-3.5 sm:p-4 rounded-2xl border text-xs space-y-2 animate-in fade-in transition-all ${
+                          imageVerification.verdict === 'APPROVED'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-500/40 text-emerald-900 dark:text-emerald-200'
+                            : imageVerification.isAiGenerated
+                            ? 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-500/50 text-red-900 dark:text-red-200'
+                            : 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-500/50 text-amber-900 dark:text-amber-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="font-bold flex items-center gap-1.5 text-xs sm:text-sm">
+                            {imageVerification.verdict === 'APPROVED' ? (
+                              <>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <span>AI Photo Analysis: Authentic Road / Civic Defect</span>
+                              </>
+                            ) : imageVerification.isAiGenerated ? (
+                              <>
+                                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+                                <span>AI Fraud Detection: Fake / Synthetic AI Image</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                                <span>AI Subject Classifier: Non-Infrastructure Image</span>
+                              </>
+                            )}
+                          </span>
+                          <span
+                            className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              imageVerification.verdict === 'APPROVED'
+                                ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30'
+                                : 'bg-red-500/20 text-red-800 dark:text-red-300 border border-red-500/30'
+                            }`}
+                          >
+                            {imageVerification.verdict === 'APPROVED' ? 'STATUS: APPROVED' : 'STATUS: BLOCKED'}
+                          </span>
                         </div>
-                      </>
-                    ) : (
-                      <span className="text-xs text-slate-500">No photo selected. Use Camera or Upload button above.</span>
+
+                        <p className="text-[12px] leading-relaxed">
+                          {imageVerification.verdict === 'APPROVED' ? (
+                            <span>
+                              Real-time computer vision analysis confirmed natural camera sensor noise patterns and zero generative diffusion artifacts. Detected:{' '}
+                              <strong>{imageVerification.detectedObject || 'Active Municipal Defect'}</strong>.
+                            </span>
+                          ) : imageVerification.isAiGenerated ? (
+                            <span className="font-semibold text-red-800 dark:text-red-300">
+                              {imageVerification.rejectionReason || 'Detected generative diffusion latent smoothing (Midjourney / DALL-E). Falsified or AI-simulated hazard imagery is strictly blocked.'}
+                            </span>
+                          ) : (
+                            <span className="font-semibold text-amber-800 dark:text-amber-300">
+                              {imageVerification.rejectionReason || 'The uploaded photograph does not depict legitimate municipal civil infrastructure. Please capture a real road or water defect.'}
+                            </span>
+                          )}
+                        </p>
+
+                        <div className="flex items-center gap-2.5 pt-1 text-[11px] font-mono opacity-85 flex-wrap">
+                          <span>Authenticity: <strong>{imageVerification.authenticityScore}% Real</strong></span>
+                          <span>•</span>
+                          <span>Civil Relevance: <strong>{imageVerification.relevanceScore}%</strong></span>
+                          <span>•</span>
+                          <span>Synthetic Risk: <strong>{imageVerification.noiseArtifactScore}%</strong></span>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -775,21 +916,45 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                   </div>
                 </div>
 
-                {/* Submit Button */}
+                {/* Submit Button with Instant Real vs Fake Feedback */}
                 <button
                   type="submit"
-                  disabled={!selectedImage || isAnalyzing}
-                  className="w-full py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  disabled={
+                    !selectedImage ||
+                    isAnalyzing ||
+                    isVerifyingImage ||
+                    imageVerification?.verdict === 'REJECTED'
+                  }
+                  className={`w-full py-3.5 rounded-xl font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                    imageVerification?.verdict === 'REJECTED'
+                      ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-500/20'
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-emerald-500/20'
+                  }`}
                 >
                   {isAnalyzing ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Processing with AI Vision...</span>
+                      <span>Submitting to Municipal Command Center...</span>
+                    </>
+                  ) : isVerifyingImage ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Verifying Photo Authenticity (Real vs Fake)...</span>
+                    </>
+                  ) : imageVerification?.isAiGenerated ? (
+                    <>
+                      <AlertTriangle className="w-5 h-5 text-white" />
+                      <span>Blocked: AI-Generated Fake Image Detected</span>
+                    </>
+                  ) : imageVerification?.verdict === 'REJECTED' ? (
+                    <>
+                      <AlertTriangle className="w-5 h-5 text-white" />
+                      <span>Blocked: Non-Infrastructure Photo</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5 text-slate-950" />
-                      <span>Submit Grievance to Municipal Portal</span>
+                      <span>Submit Grievance to Municipal Portal (Verified Real Photo)</span>
                     </>
                   )}
                 </button>
@@ -1312,20 +1477,6 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
               >
                 Upload Real Infrastructure Defect Photo
               </button>
-
-              {onOpenSimulator && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setRejectionError(null);
-                    onOpenSimulator();
-                  }}
-                  className="w-full py-2.5 rounded-2xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                >
-                  <ScanEye className="w-3.5 h-3.5" />
-                  <span>Inspect in AI Verification Simulator</span>
-                </button>
-              )}
             </div>
           </div>
         </div>

@@ -31,19 +31,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Restore session from localStorage and sanitize any old commissioner prefix
+    // Restore session from localStorage for citizens, but require OTP for Admin on every visit!
     try {
       const stored = localStorage.getItem('mygovtai_session_user') || localStorage.getItem('infrapulse_session_user');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.email) {
-          if (parsed.name) {
-            parsed.name = parsed.name.replace(/commissioner\s*/gi, '').trim();
+          // Security policy: Admin must authenticate with a live OTP every time they visit the application
+          if (parsed.role === 'admin') {
+            localStorage.removeItem('mygovtai_session_user');
+            localStorage.removeItem('infrapulse_session_user');
+            setUser(null);
+          } else {
+            if (parsed.name) {
+              parsed.name = parsed.name.replace(/commissioner\s*/gi, '').trim();
+            }
+            setUser(parsed);
           }
-          try {
-            localStorage.setItem('mygovtai_session_user', JSON.stringify(parsed));
-          } catch (_) {}
-          setUser(parsed);
         }
       }
     } catch (_) {}

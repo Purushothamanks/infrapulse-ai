@@ -12,7 +12,6 @@ import { MobileQrModal } from '@/components/MobileQrModal';
 import { FullPageImpactView } from '@/components/FullPageImpactView';
 import { AuthView } from '@/components/AuthView';
 import { CitizenPortal } from '@/components/CitizenPortal';
-import { VerificationSimulatorModal } from '@/components/VerificationSimulatorModal';
 import {
   Radio,
   Loader2,
@@ -48,7 +47,6 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
   const [isMobileQrOpen, setIsMobileQrOpen] = useState<boolean>(false);
   const [isImpactOpen, setIsImpactOpen] = useState<boolean>(false);
-  const [isSimulatorOpen, setIsSimulatorOpen] = useState<boolean>(false);
   const [mobileTab, setMobileTab] = useState<'map' | 'queue'>('map');
   const [liveIncomingAlert, setLiveIncomingAlert] = useState<HazardReport | null>(null);
   const hasInitializedRef = useRef<boolean>(false);
@@ -227,20 +225,12 @@ export default function Home() {
   // 3. Civilian Citizen State -> Render Citizen Grievance Portal
   if (user.role === 'citizen') {
     return (
-      <>
-        <CitizenPortal
-          hazards={hazards}
-          onAddHazard={handleAddHazard}
-          onDeleteHazard={handleDeleteHazard}
-          onUpdateHazard={handleUpdateHazard}
-          onOpenSimulator={() => setIsSimulatorOpen(true)}
-        />
-        <VerificationSimulatorModal
-          isOpen={isSimulatorOpen}
-          onClose={() => setIsSimulatorOpen(false)}
-          onAddHazard={handleAddHazard}
-        />
-      </>
+      <CitizenPortal
+        hazards={hazards}
+        onAddHazard={handleAddHazard}
+        onDeleteHazard={handleDeleteHazard}
+        onUpdateHazard={handleUpdateHazard}
+      />
     );
   }
 
@@ -261,7 +251,6 @@ export default function Home() {
       <Navbar
         onOpenMobileQr={() => setIsMobileQrOpen(true)}
         onOpenImpact={() => setIsImpactOpen(true)}
-        onOpenSimulator={() => setIsSimulatorOpen(true)}
         activeFilter={activeFilter}
         setActiveFilter={setActiveFilter}
         totalActiveHazards={hazards.length}
@@ -411,13 +400,6 @@ export default function Home() {
         isOpen={isImpactOpen}
         onClose={() => setIsImpactOpen(false)}
         hazards={hazards}
-      />
-
-      {/* Road Damage & Image Verification Simulator Modal */}
-      <VerificationSimulatorModal
-        isOpen={isSimulatorOpen}
-        onClose={() => setIsSimulatorOpen(false)}
-        onAddHazard={handleAddHazard}
       />
     </div>
   );
