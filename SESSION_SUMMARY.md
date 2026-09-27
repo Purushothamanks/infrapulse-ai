@@ -46,26 +46,26 @@
 
 ## 3. Email Infrastructure & Ultra-Clean Executive Format (`src/lib/mailer.ts`)
 
-### Redesigned Modern Minimalist Templates
-All email templates have been redesigned from heavy government tables to an ultra-clean executive standard (Stripe / Apple / Gov.uk aesthetic):
-- Subtle neutral background (`#f8fafc`), clean 16px rounded card, delicate 1px border (`#e2e8f0`), soft shadow.
-- High-contrast typography with system fonts.
-- Clean key-value dossier rows with subtle borders.
-- Pill status badges (`Completed & Resolved`, `In Progress`, `Critical Severity`).
+### Standardized Government Official Memorandum (OM) Architecture:
+All emails sent and received follow the authentic **Government of Tamil Nadu Official Memorandum (OM)** standard:
+- **Header:** Government of Tamil Nadu • Department of Municipal Administration & Urban Water Supply, Ezhilagam Complex, Chepauk, Chennai - 600005.
+- **Reference & Date:** `No. MAWS/OM/2026/...` with formal Indian date formatting (`Dated: 27 September, 2026`).
+- **Title:** Centered, bold, tracked **`OFFICIAL MEMORANDUM`**.
+- **Subject & Reference:** Formal `Sub:` and `Ref:` metadata headers.
+- **Numbered Paragraphs:** Formal administrative paragraphs (`1.`, `2.`, `3.`, `4.`).
+- **Signature Block:** Right-aligned formal signature block `(Sd/-)`, Officer Name, Designation, and Department.
+- **Distribution Endorsement:** Bottom `To:` and `Copy forwarded for information and record to:` blocks.
 
-### Email Types:
+### Standardized OM Email Workflows:
 1. **Permanent Municipal Security Card (`sendAdminSecurityCardEmail`):**
-   - Dispatches a digital Security Card graphic with the permanent Card Number (`TN-MUNI-XXXX-XXXX`).
-   - Addressed to `mygovtaihub@gmail.com`.
+   - Dispatched as an Official Memorandum allocating the permanent card number (`TN-MUNI-XXXX-XXXX`) to `mygovtaihub@gmail.com`.
 2. **Citizen OTP Verification (`sendOtpEmail`):**
-   - Clean 6-digit verification code block for 1st-time citizen registration.
+   - Transmits the official 6-digit identity verification passcode within an OM framework.
 3. **Grievance Status Update (`sendGrievanceStatusEmail`):**
-   - Dispatched to citizen when stage is updated (`In progress` or `Completed`).
-   - Displays: Incident title, location, ward, `Ai Prediction Budget (INR): ₹X (Realtime price detected by AI)`.
-   - Attaches official **Completion Report PDF Certificate** when marked as `Completed`.
-4. **Immediate Admin Alert (`sendNewHazardAdminAlertEmail`):**
-   - Dispatched to `mygovtaihub@gmail.com` immediately whenever a citizen logs a new hazard.
-   - Includes real-time AI budget prediction, coordinates, citizen contact, and direct link to command center.
+   - Formal OM informing the citizen of defect rectification status (`In progress` or `Completed & Resolved`), including `Ai Prediction Budget (INR): ₹X (Realtime price detected by AI)` and attached official **Completion Report PDF Certificate**.
+4. **Immediate Admin Priority Alert (`sendNewHazardAdminAlertEmail`):**
+   - Urgent Incident Ingestion & Priority Field Dispatch Directive OM dispatched to `mygovtaihub@gmail.com`.
+
 
 ### Gmail SMTP Direct Authentication (Active & Verified):
 - **Authenticated Account:** `mygovtaihub@gmail.com`
