@@ -189,7 +189,7 @@ export const VerificationSimulatorModal: React.FC<VerificationSimulatorModalProp
       imageUrl: isCustomMode && customImage ? customImage : selectedCase.imageUrl,
       reportedAt: 'Just now (Verified via Simulator)',
       citizenName: 'AI Verification Simulator',
-      citizenEmail: 'purushothamank.s799@gmail.com',
+      citizenEmail: 'mygovtaihub@gmail.com',
       upvotes: 3,
       aiAnalysis: analysisResult
     };

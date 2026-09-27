@@ -1,4 +1,19 @@
 import nodemailer from 'nodemailer';
+import { generateCompletionReportPdf } from './pdfReportGenerator';
+import { HazardReport } from '@/types/hazard';
+
+const SENDER_EMAIL = process.env.SMTP_SENDER_EMAIL || 'mygovtaihub@gmail.com';
+const ADMIN_ALERT_EMAIL = process.env.ADMIN_ALERT_EMAIL || 'mygovtaihub@gmail.com';
+
+function getSmtpConfig() {
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '465', 10);
+  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS;
+  const from = process.env.SMTP_FROM || `"MyGovt AI Hub" <${SENDER_EMAIL}>`;
+
+  return { host, port, user, pass, from };
+}
 
 interface SendOtpParams {
   toEmail: string;
@@ -15,17 +30,13 @@ export async function sendOtpEmail({
   role,
   officialId
 }: SendOtpParams): Promise<{ success: boolean; error?: string }> {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '465', 10);
-  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS;
-  const from = process.env.SMTP_FROM || `"MyGovt AI Hub" <${user || 'purushothamank.s799@gmail.com'}>`;
+  const { host, port, user, pass, from } = getSmtpConfig();
 
   console.log(`[AUTH-OTP] Generated OTP for ${toEmail} (${role}): ${otp}, Official ID: ${officialId || 'N/A'}`);
 
   if (!user || !pass) {
     console.warn(
-      `[AUTH-EMAIL-WARN] SMTP credentials not set. Set SMTP_USER and SMTP_PASS (or GMAIL_USER and GMAIL_APP_PASS) in .env.local to dispatch live emails.`
+      `[AUTH-EMAIL-WARN] SMTP credentials not set. Set SMTP_USER and SMTP_PASS in .env.local to dispatch live emails.`
     );
     return {
       success: false,
@@ -38,15 +49,12 @@ export async function sendOtpEmail({
       host,
       port,
       secure: port === 465,
-      auth: {
-        user,
-        pass
-      }
+      auth: { user, pass }
     });
 
     const isOfficial = role === 'admin';
     const roleBadgeText = isOfficial ? 'Official Municipal Administrator' : 'Civilian Citizen Access';
-    const recipientTitle = recipientName || (isOfficial ? 'K. S. Purushothaman' : 'Citizen');
+    const recipientTitle = recipientName || (isOfficial ? 'Municipal Administrator' : 'Citizen');
 
     const html = `
 <!DOCTYPE html>
@@ -97,13 +105,11 @@ export async function sendOtpEmail({
         }
       </p>
 
-      <!-- Primary OTP Box -->
       <div class="credential-box">
         <div class="otp-code">${otp}</div>
         <div class="credential-label">One-Time Security Verification Code (OTP)</div>
       </div>
 
-      <!-- Government Official ID (Only for Admin) -->
       ${isOfficial && officialId ? `
       <div class="gov-id-box">
         <div class="gov-id-code">${officialId}</div>
@@ -157,6 +163,7 @@ export async function sendOtpEmail({
     await transporter.sendMail({
       from,
       to: toEmail,
+      replyTo: SENDER_EMAIL,
       subject,
       text: isOfficial
         ? `Your MyGovt AI Hub verification OTP is: ${otp}. Your Government Official ID is: ${officialId || 'TN-SAMPLE-2026'}. Valid for 10 minutes.`
@@ -180,31 +187,31 @@ export interface GrievanceStatusEmailParams {
   hazardId?: string;
   citizenName?: string;
   hazardTitle: string;
+  hazardType?: string;
   newStatus: string;
   locationAddress: string;
   ward: string;
   contractorTeam?: string;
   scheduledDispatch?: string;
   workOrderId?: string;
+  estimatedCost?: number;
 }
 
 export async function sendGrievanceStatusEmail({
   toEmail,
-  hazardId,
+  hazardId = 'HZ-REPORT',
   citizenName,
   hazardTitle,
+  hazardType = 'pothole',
   newStatus,
   locationAddress,
   ward,
   contractorTeam,
   scheduledDispatch,
-  workOrderId
+  workOrderId,
+  estimatedCost = 12500
 }: GrievanceStatusEmailParams): Promise<{ success: boolean; error?: string }> {
-  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = parseInt(process.env.SMTP_PORT || '465', 10);
-  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS;
-  const from = process.env.SMTP_FROM || `"MyGovt AI Hub" <${user || 'purushothamank.s799@gmail.com'}>`;
+  const { host, port, user, pass, from } = getSmtpConfig();
 
   if (!toEmail || !toEmail.includes('@')) {
     return { success: false, error: 'Invalid recipient email' };
@@ -227,8 +234,37 @@ export async function sendGrievanceStatusEmail({
     const statusBadgeColor = isCompleted ? '#10b981' : '#f59e0b';
     const statusText = isCompleted ? 'COMPLETED & RESOLVED' : 'IN PROGRESS / DISPATCHED';
     const subject = isCompleted
-      ? `🏛️ [Resolved] Your civic grievance for "${hazardTitle}" has been Completed`
+      ? `🏛️ [Resolved & Certified] Your civic report for "${hazardTitle}" is Completed`
       : `🏛️ [In Progress] Repair crews mobilized for "${hazardTitle}"`;
+
+    let pdfAttachment: any = null;
+    if (isCompleted) {
+      try {
+        console.log(`[PDF-GEN] Generating official completion PDF certificate for ${hazardId}...`);
+        const pdfBuffer = await generateCompletionReportPdf({
+          hazardId,
+          hazardTitle,
+          hazardType,
+          locationAddress,
+          ward,
+          citizenName: citizenName || 'Civic Scout',
+          citizenEmail: toEmail,
+          contractorTeam: contractorTeam || 'Tamil Nadu Rapid Infrastructure Unit',
+          estimatedCost,
+          completedAt: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'long', timeStyle: 'short' }),
+          authorizedOfficer: 'K. S. Purushothaman'
+        });
+
+        pdfAttachment = {
+          filename: `Official_Completion_Report_${hazardId}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        };
+        console.log(`[PDF-GEN-SUCCESS] Completion certificate attached (${pdfBuffer.length} bytes).`);
+      } catch (pdfErr) {
+        console.error('[PDF-GEN-ERROR] Failed to generate PDF certificate:', pdfErr);
+      }
+    }
 
     const html = `
 <!DOCTYPE html>
@@ -249,8 +285,9 @@ export async function sendGrievanceStatusEmail({
     .status-card { background: #0f172a; border: 1px solid #334155; border-radius: 14px; padding: 16px; margin: 18px 0; }
     .info-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .info-table td { padding: 8px 10px; border-bottom: 1px solid #334155; }
-    .info-table td:first-child { color: #94a3b8; font-weight: 600; width: 35%; }
+    .info-table td:first-child { color: #94a3b8; font-weight: 600; width: 38%; }
     .info-table td:last-child { color: #f1f5f9; }
+    .pdf-card { background: #064e3b; border: 1px dashed #10b981; border-radius: 12px; padding: 14px 16px; margin: 18px 0; color: #a7f3d0; font-size: 12px; }
     .footer { padding: 16px 24px; background: #0f172a; border-top: 1px solid #334155; text-align: center; font-size: 11px; color: #64748b; }
   </style>
 </head>
@@ -258,17 +295,23 @@ export async function sendGrievanceStatusEmail({
   <div class="card">
     <div class="header">
       <h1 class="brand">🏛️ MyGovt AI Hub</h1>
-      <div class="subbrand">Civic Grievance Real-Time Tracking Notification</div>
+      <div class="subbrand">Civic Grievance Real-Time Resolution Notification</div>
     </div>
     <div class="body">
       <div class="badge">${statusText}</div>
       <div class="greeting">Hello, ${citizenName || 'Civic Scout'}</div>
       <p class="desc">
         ${isCompleted
-          ? `Great news! The municipal maintenance fleet has successfully completed the repair works for your reported grievance: <strong>${hazardTitle}</strong>.`
+          ? `Great news! The municipal maintenance fleet has successfully completed all repair works for your reported defect: <strong>${hazardTitle}</strong>.`
           : `The municipal administration has reviewed your report for <strong>${hazardTitle}</strong> and marked it as <strong>IN PROGRESS</strong>. Repair operations are actively underway.`
         }
       </p>
+
+      ${isCompleted && pdfAttachment ? `
+      <div class="pdf-card">
+        📄 <strong>Official Certificate Attached:</strong> Please find attached the official <strong>Completion & Quality Assurance Certificate (PDF)</strong> issued by the Tamil Nadu Municipal Administration.
+      </div>
+      ` : ''}
 
       <div class="status-card">
         <table class="info-table">
@@ -285,6 +328,10 @@ export async function sendGrievanceStatusEmail({
             <td>Updated Status</td>
             <td><strong style="color: ${statusBadgeColor};">${statusText}</strong></td>
           </tr>
+          <tr>
+            <td>Ai Prediction Budget (INR)</td>
+            <td style="font-family: monospace; font-weight: bold; color: #34d399;">₹${estimatedCost.toLocaleString('en-IN')} (Realtime price detected by AI)</td>
+          </tr>
           ${workOrderId ? `<tr><td>Official Work Order</td><td style="font-family: monospace;">${workOrderId}</td></tr>` : ''}
           ${contractorTeam ? `<tr><td>Assigned Contractor</td><td>${contractorTeam}</td></tr>` : ''}
           ${scheduledDispatch ? `<tr><td>SLA Dispatch Window</td><td>${scheduledDispatch}</td></tr>` : ''}
@@ -298,7 +345,7 @@ export async function sendGrievanceStatusEmail({
       <p style="font-size: 11px; color: #94a3b8; line-height: 1.5;">
         ${isCompleted
           ? '🌟 Thank you for keeping our city safe and sustainable by reporting urban defects!'
-          : '📡 You will receive another notification once the field crew certifies completion.'
+          : '📡 You will receive another notification with the completion certificate once field crews certify completion.'
         }
       </p>
     </div>
@@ -310,18 +357,161 @@ export async function sendGrievanceStatusEmail({
 </html>
     `;
 
-    await transporter.sendMail({
+    const mailOptions: any = {
       from,
       to: toEmail,
+      replyTo: SENDER_EMAIL,
       subject,
-      text: `Grievance Update: Your reported issue for "${hazardTitle}" is now ${statusText}.`,
+      text: `Grievance Update: Your reported issue for "${hazardTitle}" is now ${statusText}.${isCompleted ? ' Official Completion PDF Certificate is attached.' : ''}`,
       html
-    });
+    };
 
-    console.log(`[STATUS-EMAIL-SUCCESS] Grievance status update email sent to ${toEmail} for ${hazardTitle}`);
+    if (pdfAttachment) {
+      mailOptions.attachments = [pdfAttachment];
+    }
+
+    await transporter.sendMail(mailOptions);
+
+    console.log(`[STATUS-EMAIL-SUCCESS] Grievance status email sent to ${toEmail} for ${hazardTitle}`);
     return { success: true };
   } catch (err: any) {
     console.error(`[STATUS-EMAIL-ERROR] Failed to send status email to ${toEmail}:`, err?.message || err);
+    return { success: false, error: err?.message };
+  }
+}
+
+/**
+ * Immediate Admin Alert Email dispatched whenever any citizen posts a new hazard.
+ */
+export async function sendNewHazardAdminAlertEmail({
+  hazard
+}: {
+  hazard: HazardReport;
+}): Promise<{ success: boolean; error?: string }> {
+  const { host, port, user, pass, from } = getSmtpConfig();
+
+  if (!user || !pass) {
+    console.warn('[ADMIN-ALERT-WARN] SMTP not configured. Skipping admin alert.');
+    return { success: false, error: 'SMTP_NOT_CONFIGURED' };
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass }
+    });
+
+    const isCritical = hazard.urgency === 'CRITICAL';
+    const badgeColor = isCritical ? '#ef4444' : '#f59e0b';
+    const estimatedCost = hazard.aiAnalysis?.estimatedCost || 12500;
+
+    const subject = `🚨 [NEW CIVIC REPORT] ${hazard.id}: ${hazard.title} (${hazard.location.ward})`;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>New Incident Reported</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #0f172a; margin: 0; padding: 24px; color: #f8fafc; }
+    .card { max-width: 540px; margin: 0 auto; background: #1e293b; border: 1px solid #334155; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); }
+    .header { background: linear-gradient(135deg, #b91c1c, #dc2626); padding: 24px; text-align: center; }
+    .brand { font-size: 18px; font-weight: 800; color: #ffffff; margin: 0; }
+    .subbrand { font-size: 11px; color: #fecaca; margin-top: 4px; font-family: monospace; }
+    .body { padding: 28px 24px; }
+    .badge { display: inline-block; padding: 6px 14px; border-radius: 9999px; font-size: 11px; font-weight: 800; background: ${badgeColor}; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+    .alert-box { background: #450a0a; border: 1px solid #dc2626; border-radius: 12px; padding: 14px; margin-bottom: 18px; color: #fecaca; font-size: 12px; line-height: 1.5; }
+    .info-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .info-table td { padding: 8px 10px; border-bottom: 1px solid #334155; }
+    .info-table td:first-child { color: #94a3b8; font-weight: 600; width: 40%; }
+    .info-table td:last-child { color: #f1f5f9; }
+    .action-btn { display: block; text-align: center; background: #10b981; color: #022c22; font-weight: 800; text-decoration: none; padding: 14px 20px; border-radius: 12px; font-size: 13px; margin-top: 22px; }
+    .footer { padding: 16px 24px; background: #0f172a; border-top: 1px solid #334155; text-align: center; font-size: 11px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1 class="brand">🚨 Municipal Command Alert</h1>
+      <div class="subbrand">MyGovt AI Hub • Autonomous Incident Ingestion Grid</div>
+    </div>
+    <div class="body">
+      <div class="badge">${hazard.urgency} RISK [${hazard.severity}/100]</div>
+      <div class="alert-box">
+        ⚠️ <strong>New Incident Lodged:</strong> A citizen has just reported a municipal infrastructure defect via the Citizen Desk. Triage and contractor dispatch are required.
+      </div>
+
+      <table class="info-table">
+        <tr>
+          <td>Incident ID</td>
+          <td style="font-family: monospace; font-weight: bold; color: #38bdf8;">${hazard.id}</td>
+        </tr>
+        <tr>
+          <td>Incident Title</td>
+          <td><strong>${hazard.title}</strong></td>
+        </tr>
+        <tr>
+          <td>Category</td>
+          <td>${hazard.type.toUpperCase().replace('_', ' ')}</td>
+        </tr>
+        <tr>
+          <td>Location Address</td>
+          <td>${hazard.location.address}</td>
+        </tr>
+        <tr>
+          <td>Municipal Ward</td>
+          <td>${hazard.location.ward}</td>
+        </tr>
+        <tr>
+          <td>GPS Coordinates</td>
+          <td style="font-family: monospace;">${hazard.location.lat.toFixed(5)}° N, ${hazard.location.lng.toFixed(5)}° E</td>
+        </tr>
+        <tr>
+          <td>Reported Citizen</td>
+          <td>${hazard.citizenName || 'Civilian'}</td>
+        </tr>
+        <tr>
+          <td>Citizen Contact Email</td>
+          <td style="font-family: monospace;">${hazard.citizenEmail || 'citizen@gmail.com'}</td>
+        </tr>
+        <tr>
+          <td>Ai Prediction Budget (INR)</td>
+          <td style="font-family: monospace; font-weight: bold; color: #34d399;">₹${estimatedCost.toLocaleString('en-IN')} (Realtime price detected by AI)</td>
+        </tr>
+        <tr>
+          <td>Lodgement Timestamp</td>
+          <td>${hazard.reportedAt || 'Just now'}</td>
+        </tr>
+      </table>
+
+      <a href="https://3.6.172.250.nip.io" class="action-btn">
+        Open Municipal Command Center & Dispatch Work Order
+      </a>
+    </div>
+    <div class="footer">
+      Delivered to Municipal Administration via MyGovt AI Hub (${ADMIN_ALERT_EMAIL})
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    await transporter.sendMail({
+      from,
+      to: ADMIN_ALERT_EMAIL,
+      replyTo: hazard.citizenEmail || SENDER_EMAIL,
+      subject,
+      text: `New Hazard Lodged: [${hazard.id}] ${hazard.title} at ${hazard.location.address} (${hazard.location.ward}). Reported by ${hazard.citizenName || 'Citizen'} (${hazard.citizenEmail}). Ai Prediction Budget: ₹${estimatedCost}. Inspect at https://3.6.172.250.nip.io`,
+      html
+    });
+
+    console.log(`[ADMIN-ALERT-SUCCESS] New hazard alert email dispatched to ${ADMIN_ALERT_EMAIL} for ${hazard.id}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error(`[ADMIN-ALERT-ERROR] Failed to send admin alert to ${ADMIN_ALERT_EMAIL}:`, err?.message || err);
     return { success: false, error: err?.message };
   }
 }

@@ -45,7 +45,7 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
   const PROGRESS_OPTIONS: HazardProgress[] = ['Not started', 'In progress', 'Completed'];
 
   const dispatchStatusEmail = async (prog: HazardProgress, workOrderId?: string, contractorTeam?: string) => {
-    const targetEmail = hazard.citizenEmail || 'purushothamank.s799@gmail.com';
+    const targetEmail = hazard.citizenEmail || 'mygovtaihub@gmail.com';
     try {
       const res = await fetch('/api/notifications/status-update', {
         method: 'POST',
@@ -53,6 +53,7 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
         body: JSON.stringify({
           hazardId: hazard.id,
           hazardTitle: hazard.title,
+          hazardType: hazard.type,
           newStatus: prog,
           citizenEmail: targetEmail,
           citizenName: hazard.citizenName || 'Civic Scout',
@@ -60,13 +61,18 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
           ward: hazard.location.ward,
           contractorTeam: contractorTeam || hazard.workOrder?.contractorTeam,
           scheduledDispatch: hazard.workOrder?.scheduledDispatch,
-          workOrderId: workOrderId || hazard.workOrder?.orderId
+          workOrderId: workOrderId || hazard.workOrder?.orderId,
+          estimatedCost: hazard.aiAnalysis?.estimatedCost || 12500
         })
       });
 
       const data = await res.json();
       if (data.success) {
-        setStatusEmailNotice(`Automated email notification sent to ${targetEmail} (${prog})`);
+        setStatusEmailNotice(
+          prog === 'Completed'
+            ? `Automated completion email & official PDF certificate sent to ${targetEmail}`
+            : `Automated email notification sent to ${targetEmail} (${prog})`
+        );
         setTimeout(() => setStatusEmailNotice(null), 8000);
       }
     } catch (err) {
@@ -287,45 +293,27 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
 
             {/* Right: AI Intelligence Breakdown */}
             <div className="space-y-4">
-              {/* Feature Tags */}
-              <div>
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
-                  Computer Vision Detected Markers
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {hazard.aiAnalysis.detectedFeatures.map((feat, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-1 rounded-lg text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-medium"
-                    >
-                      {feat}
-                    </span>
-                  ))}
+              <div className="p-5 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 border border-emerald-500/30 text-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                    Ai Prediction Budget (INR)
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                    REALTIME DETECTED
+                  </span>
                 </div>
-              </div>
-
-              {/* Sustainability & Carbon Impact */}
-              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-500/30 text-xs space-y-1.5">
-                <div className="flex items-center gap-1.5 font-bold text-emerald-800 dark:text-emerald-400">
-                  <Leaf className="w-4 h-4" />
-                  <span>Environmental & SDG 11 Impact</span>
+                <div className="flex items-baseline gap-2.5 pt-1">
+                  <span className="text-3xl sm:text-4xl font-extrabold font-mono text-emerald-700 dark:text-emerald-300">
+                    ₹{hazard.aiAnalysis.estimatedCost ? hazard.aiAnalysis.estimatedCost.toLocaleString('en-IN') : '12,500'}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    (Realtime price detected by AI)
+                  </span>
                 </div>
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{hazard.aiAnalysis.sustainabilityImpact}</p>
-                <div className="pt-1 text-[11px] font-mono text-emerald-700 dark:text-emerald-300 font-semibold">
-                  Carbon Penalty: {hazard.aiAnalysis.carbonPenaltyKgPerDay} kg CO₂ equivalent / day
-                </div>
-              </div>
-
-              {/* AI Recommended Remediation Action */}
-              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
-                <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>Suggested Municipal Protocol</span>
-                </div>
-                <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{hazard.aiAnalysis.suggestedAction}</p>
-                <div className="pt-1 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
-                  Estimated Remediation Budget: ₹{hazard.aiAnalysis.estimatedCost.toLocaleString()}
-                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed pt-1">
+                  Dynamically estimated based on autonomous computer vision defect analysis, surface area cavitation, and municipal schedule of rates.
+                </p>
               </div>
             </div>
           </div>

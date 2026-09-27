@@ -7,6 +7,7 @@ export async function POST(request: Request) {
     const {
       hazardId,
       hazardTitle,
+      hazardType,
       newStatus,
       citizenEmail,
       citizenName,
@@ -14,7 +15,8 @@ export async function POST(request: Request) {
       ward,
       contractorTeam,
       scheduledDispatch,
-      workOrderId
+      workOrderId,
+      estimatedCost
     } = body;
 
     const cleanEmail = (citizenEmail || '').trim().toLowerCase();
@@ -34,13 +36,15 @@ export async function POST(request: Request) {
       toEmail: cleanEmail,
       hazardId: hazardId || 'HZ-REPORT',
       hazardTitle: hazardTitle || 'Infrastructure Defect',
+      hazardType: hazardType || 'pothole',
       newStatus: newStatus || 'In progress',
       citizenName: cleanName,
       locationAddress: locationAddress || 'City Location',
       ward: ward || 'Ward Admin',
       contractorTeam,
       scheduledDispatch,
-      workOrderId
+      workOrderId,
+      estimatedCost: estimatedCost || 12500
     });
 
     return NextResponse.json({

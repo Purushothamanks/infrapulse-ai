@@ -22,7 +22,8 @@ import {
   UserPlus
 } from 'lucide-react';
 
-const REQUIRED_ADMIN_EMAIL = 'purushothamank.s799@gmail.com';
+const AUTHORIZED_ADMIN_EMAILS = ['mygovtaihub@gmail.com'];
+const isAuthorizedAdmin = (e: string) => AUTHORIZED_ADMIN_EMAILS.includes((e || '').trim().toLowerCase());
 
 export const AuthView: React.FC = () => {
   const { signIn, requestOtp, verifyOtpAndLogin } = useAuth();
@@ -84,8 +85,8 @@ export const AuthView: React.FC = () => {
     const cleanEmail = email.trim().toLowerCase();
 
     if (selectedRole === 'admin') {
-      if (cleanEmail !== REQUIRED_ADMIN_EMAIL.toLowerCase()) {
-        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to access the Official Command Center. For any issue , reach : purushothamank.s799@gmail.com');
+      if (!isAuthorizedAdmin(cleanEmail)) {
+        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to access the Official Command Center. For any issue , reach : mygovtaihub@gmail.com');
         return;
       }
     } else {
@@ -127,8 +128,8 @@ export const AuthView: React.FC = () => {
 
     // Client-side quick validation for Admin
     if (selectedRole === 'admin') {
-      if (cleanEmail !== REQUIRED_ADMIN_EMAIL.toLowerCase()) {
-        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to register the Official Command Center. For any issue , reach : purushothamank.s799@gmail.com');
+      if (!isAuthorizedAdmin(cleanEmail)) {
+        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to register the Official Command Center. For any issue , reach : mygovtaihub@gmail.com');
         return;
       }
     } else {
@@ -376,10 +377,10 @@ export const AuthView: React.FC = () => {
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
                     For any issue , reach :{' '}
                     <a
-                      href="mailto:purushothamank.s799@gmail.com"
+                      href="mailto:mygovtaihub@gmail.com"
                       className="text-emerald-600 dark:text-emerald-400 hover:underline font-mono"
                     >
-                      purushothamank.s799@gmail.com
+                      mygovtaihub@gmail.com
                     </a>
                   </span>
                 ) : (
@@ -479,8 +480,8 @@ export const AuthView: React.FC = () => {
                     {selectedRole === 'admin' && (
                       <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
                         For any issue , reach :{' '}
-                        <a href="mailto:purushothamank.s799@gmail.com" className="text-emerald-600 dark:text-emerald-400 hover:underline font-mono">
-                          purushothamank.s799@gmail.com
+                        <a href="mailto:mygovtaihub@gmail.com" className="text-emerald-600 dark:text-emerald-400 hover:underline font-mono">
+                          mygovtaihub@gmail.com
                         </a>
                       </span>
                     )}

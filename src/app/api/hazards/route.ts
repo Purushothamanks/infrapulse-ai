@@ -7,6 +7,7 @@ import {
   clearAllHazards
 } from '@/lib/hazardStore';
 import { HazardReport } from '@/types/hazard';
+import { sendNewHazardAdminAlertEmail } from '@/lib/mailer';
 
 export async function GET() {
   try {
@@ -47,6 +48,12 @@ export async function POST(request: Request) {
     }
 
     const updatedList = addNewHazard(hazard);
+
+    // Asynchronously dispatch immediate notification alert email to admin (mygovtaihub@gmail.com)
+    sendNewHazardAdminAlertEmail({ hazard }).catch((alertErr) => {
+      console.error('[ADMIN-ALERT-DISPATCH-ERR]', alertErr);
+    });
+
     return NextResponse.json({
       success: true,
       hazards: updatedList,

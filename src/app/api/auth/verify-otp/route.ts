@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       user = registerUser({
         id: 'USR-ADM-001',
         name: 'K. S. Purushothaman',
-        email: 'purushothamank.s799@gmail.com',
+        email: cleanEmail,
         role: 'admin',
         officialId: verifiedOfficialId || 'TN-SAMPLE-2026',
         verified: true,

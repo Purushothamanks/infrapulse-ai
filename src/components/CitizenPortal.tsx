@@ -798,38 +798,56 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           </div>
         )}
 
-        {/* VIEW 2: MY GRIEVANCES (Only this citizen's grievances) */}
+        {/* VIEW 2: MY FILED REPORTS (Clean, Mobile-First Civic Tracking) */}
         {activeTab === 'history' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  <span>My Personal Grievance Track & History</span>
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Grievances lodged by your verified citizen account ({user?.email || 'Guest Civilian'}).
-                </p>
+            {/* Sleek, Modern, Mobile-First Header */}
+            <div className="p-4 sm:p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">
+                      My Filed Reports
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 shrink-0">
+                      {myComplaints.length} {myComplaints.length === 1 ? 'Report' : 'Reports'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                    Live municipal status for reports filed by {user?.email || 'your account'}
+                  </p>
+                </div>
               </div>
-              <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800">
-                {myComplaints.length} Personal Grievances
-              </span>
+
+              {myComplaints.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('raise')}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs shrink-0"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Report New Defect</span>
+                </button>
+              )}
             </div>
 
             {myComplaints.length === 0 ? (
               <div className="p-8 text-center bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
                 <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
-                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No personal grievances logged yet</h4>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No reports filed yet</h4>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
                   You haven&apos;t registered any municipal infrastructure defects under this account.
-                  Found a pothole or water leak? Lodge a grievance now.
+                  Found a pothole or water leak? Lodge a report now.
                 </p>
                 <button
                   type="button"
                   onClick={() => setActiveTab('raise')}
                   className="px-4 py-2 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs cursor-pointer hover:bg-emerald-400 transition-colors"
                 >
-                  Raise a Complaint
+                  Report a Defect
                 </button>
               </div>
             ) : (
@@ -1502,54 +1520,29 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
 
               {/* AI Engineering Analysis */}
               {selectedDetailHazard.aiAnalysis && (
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 space-y-3 text-xs">
-                  <h4 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-emerald-500" />
-                    <span>AI Civil Engineering Triage Breakdown</span>
-                  </h4>
-                  <div className="space-y-2">
-                    <div>
-                      <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Estimated Dimensions:</span>
-                      <span className="font-semibold text-slate-800 dark:text-slate-200">
-                        {selectedDetailHazard.aiAnalysis.dimensionsEstimated || 'Surface defect analyzed'}
-                      </span>
-                    </div>
-                    {selectedDetailHazard.aiAnalysis.detectedFeatures && (
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px] mb-1">Detected Observations:</span>
-                        <ul className="space-y-1">
-                          {selectedDetailHazard.aiAnalysis.detectedFeatures.map((feat, i) => (
-                            <li key={i} className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                              <span>{feat}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    {selectedDetailHazard.aiAnalysis.suggestedAction && (
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Suggested Municipal Protocol:</span>
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">
-                          {selectedDetailHazard.aiAnalysis.suggestedAction}
-                        </span>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Est. Budget:</span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white">
-                          ₹{selectedDetailHazard.aiAnalysis.estimatedCost?.toLocaleString() || '15,000'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Carbon Penalty:</span>
-                        <span className="font-mono font-bold text-amber-600 dark:text-amber-400">
-                          {selectedDetailHazard.aiAnalysis.carbonPenaltyKgPerDay || '24.5'} kg/day
-                        </span>
-                      </div>
-                    </div>
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 border border-emerald-500/30 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-emerald-500" />
+                      Ai Prediction Budget (INR)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                      REALTIME DETECTED
+                    </span>
                   </div>
+                  <div className="flex items-baseline gap-2 pt-1">
+                    <span className="text-2xl sm:text-3xl font-extrabold font-mono text-emerald-700 dark:text-emerald-300">
+                      ₹{selectedDetailHazard.aiAnalysis.estimatedCost ? selectedDetailHazard.aiAnalysis.estimatedCost.toLocaleString('en-IN') : '12,500'}
+                    </span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      (Realtime price detected by AI)
+                    </span>
+                  </div>
+                  {selectedDetailHazard.aiAnalysis.dimensionsEstimated && (
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400 pt-0.5">
+                      Estimated Physical Scale: <span className="font-mono font-semibold text-slate-800 dark:text-slate-200">{selectedDetailHazard.aiAnalysis.dimensionsEstimated}</span>
+                    </div>
+                  )}
                 </div>
               )}
 

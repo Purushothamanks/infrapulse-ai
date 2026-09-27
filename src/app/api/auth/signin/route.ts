@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getRegisteredUser, registerUser } from '@/lib/userStore';
 
-const AUTHORIZED_ADMIN_EMAIL = 'purushothamank.s799@gmail.com';
+const AUTHORIZED_ADMIN_EMAILS = ['mygovtaihub@gmail.com'];
+const isAuthorizedAdmin = (e: string) => AUTHORIZED_ADMIN_EMAILS.includes((e || '').trim().toLowerCase());
 
 export async function POST(request: Request) {
   try {
@@ -19,12 +20,12 @@ export async function POST(request: Request) {
     }
 
     // 1. Municipal Admin Sign In
-    if (selectedRole === 'admin' || cleanEmail === AUTHORIZED_ADMIN_EMAIL.toLowerCase()) {
-      if (cleanEmail !== AUTHORIZED_ADMIN_EMAIL.toLowerCase()) {
+    if (selectedRole === 'admin' || isAuthorizedAdmin(cleanEmail)) {
+      if (!isAuthorizedAdmin(cleanEmail)) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue , reach : purushothamank.s799@gmail.com'
+            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue , reach : mygovtaihub@gmail.com'
           },
           { status: 403 }
         );

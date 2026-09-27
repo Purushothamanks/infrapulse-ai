@@ -6,10 +6,10 @@ import { User, UserRole } from '@/types/auth';
 const USERS_FILE = path.join(os.tmpdir(), 'mygovt_registered_users.json');
 
 const INITIAL_REGISTERED_USERS: Record<string, User> = {
-  'purushothamank.s799@gmail.com': {
+  'mygovtaihub@gmail.com': {
     id: 'USR-ADM-001',
     name: 'K. S. Purushothaman',
-    email: 'purushothamank.s799@gmail.com',
+    email: 'mygovtaihub@gmail.com',
     role: 'admin',
     officialId: 'TN-SAMPLE-2026',
     verified: true,

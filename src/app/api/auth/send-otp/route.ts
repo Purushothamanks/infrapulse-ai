@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { saveOtpRecord } from '@/lib/otpStore';
 import { sendOtpEmail } from '@/lib/mailer';
 
-const AUTHORIZED_ADMIN_EMAIL = 'purushothamank.s799@gmail.com';
+const AUTHORIZED_ADMIN_EMAILS = ['mygovtaihub@gmail.com'];
 const AUTHORIZED_GOVT_ID = 'TN-SAMPLE-2026';
 
 export async function POST(request: Request) {
@@ -22,11 +22,11 @@ export async function POST(request: Request) {
 
     // 1. Strict Validation for Municipal Admin Email
     if (cleanRole === 'admin') {
-      if (cleanEmail !== AUTHORIZED_ADMIN_EMAIL.toLowerCase()) {
+      if (!AUTHORIZED_ADMIN_EMAILS.includes(cleanEmail)) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue , reach : purushothamank.s799@gmail.com'
+            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue , reach : mygovtaihub@gmail.com'
           },
           { status: 403 }
         );
