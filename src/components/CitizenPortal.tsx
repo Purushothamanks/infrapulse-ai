@@ -705,7 +705,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
               alt="MyGovt AI Hub Logo"
               className="h-9 sm:h-10 w-auto object-contain rounded-xl shadow-xs"
             />
-            <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 uppercase">
               MY GOVT AI HUB
             </span>
           </div>
