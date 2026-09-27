@@ -260,5 +260,65 @@ git push origin main
 | `src/components/CitizenPortal.tsx` | Updated | Added "AI Simulator" button in header & rejection alert modal |
 | `src/app/page.tsx` | Updated | Wired `VerificationSimulatorModal` to both citizen & admin states |
 
+---
+
+## 14. AI Prediction Budget, Mobile My Reports Redesign, Admin Lodgement Alerts, Completion PDF Certificate & Email Migration
+
+### A. Removal of Legacy Computer Vision Markers & AI Prediction Budget
+1. **Removed Clutter:**
+   - Removed "Computer Vision Detected Markers", defect observation tags, "Environmental & SDG 11 Impact", carbon penalty text (`38.6 kg CO₂`), and "Suggested Municipal Protocol".
+2. **Added Realtime AI Prediction Budget:**
+   - Implemented: **"Ai Prediction Budget (INR)"** displaying the dynamically computed repair price (e.g. `₹12,500`) with explicit subtext: `(Realtime price detected by AI)`.
+   - Integrated into:
+     - Admin Inspector Modal (`src/components/HazardInspectorModal.tsx`)
+     - Citizen Detailed View Modal (`src/components/CitizenPortal.tsx`)
+     - Automated Admin Alert Emails (`src/lib/mailer.ts`)
+     - Automated Citizen Grievance Resolution Emails (`src/lib/mailer.ts`)
+     - Official Municipal Completion PDF Certificate (`src/lib/pdfReportGenerator.ts`)
+
+### B. Mobile-First Redesign of "My Reports" Section
+- Replaced the clunky "Personal Grievances" header that looked crowded and awkward on mobile screens.
+- Designed a sleek, modern, mobile-first card featuring:
+  - Clean title: **"My Filed Reports"** with live status indicator
+  - Dynamic count badge (e.g., `1 Report` / `N Reports`)
+  - Informative subtitle displaying the authenticated user's email
+  - Quick-action **"Report New Defect"** camera button visible on both mobile viewports and desktop
+
+### C. Automated Instant Admin Alert on Hazard Lodgement
+- When any citizen lodges a hazard via `POST /api/hazards`, the system immediately triggers `sendNewHazardAdminAlertEmail({ hazard })` asynchronously.
+- Dispatches a municipal command center alert directly to `mygovtaihub@gmail.com` with:
+  - Incident ID, title, category, and GPS coordinates
+  - Ward name and street location
+  - Citizen name and email
+  - Realtime AI Prediction Budget (INR)
+  - Direct quick link to open the municipal command center GIS grid
+
+### D. Automated Citizen Completion Email with Official PDF Certificate
+1. **Official PDF Docket Generator (`src/lib/pdfReportGenerator.ts`):**
+   - Engineered using `pdfkit` to generate vector PDF completion certificates.
+   - Includes Government of Tamil Nadu header banner, official work completion title, full grievance dossier, 4-point ASTM engineering clearance checklist, digital signature seal (SHA256), and authorized signatory.
+2. **Citizen Resolution Dispatch:**
+   - When an administrator marks a hazard status as `Completed`, `sendGrievanceStatusEmail` attaches the generated `Official_Completion_Report_[ID].pdf` and emails the reporting citizen.
+
+### E. Migration of Sender & Admin Alert Email to `mygovtaihub@gmail.com`
+- **Sender Email:** Changed all outgoing system communications to use `mygovtaihub@gmail.com` (`SMTP_FROM="MyGovt AI Hub" <mygovtaihub@gmail.com>`).
+- **Admin Alert Email:** Set to `mygovtaihub@gmail.com` (`ADMIN_ALERT_EMAIL=mygovtaihub@gmail.com`).
+- **Access Whitelist:** Updated `src/app/api/auth/send-otp/route.ts`, `src/app/api/auth/signin/route.ts`, `src/components/AuthView.tsx`, and `src/lib/userStore.ts` to authorize `mygovtaihub@gmail.com`. Removed legacy occurrences of `purushothamank.s799@gmail.com`.
+
+### F. Verification & Production Deployment
+1. **Live SMTP & PDF Delivery Test:**
+   - Admin Alert Email Message ID: `<fab05e89-65bc-f11f-0d42-ed9ebea7392e@gmail.com>`
+   - Completion Email with PDF Message ID: `<2da676ce-8d82-e075-c495-798e0d964448@gmail.com>` (3,275-byte vector PDF attached)
+2. **Git Commit & Push:**
+   - Commit `335fcbe` pushed to GitHub `origin/main`.
+3. **AWS EC2 Production Deployment:**
+   - Files synced via `rsync` to AWS EC2 `3.6.172.250`.
+   - Updated `.env.local` with `SMTP_FROM`, `SMTP_SENDER_EMAIL`, and `ADMIN_ALERT_EMAIL` set to `mygovtaihub@gmail.com`.
+   - Installed `pdfkit` and `@types/pdfkit`.
+   - Successfully compiled Next.js production build (`Compiled successfully in 53s`).
+   - Reloaded PM2 process 0 (`pm2 restart 0 --update-env`).
+   - Verified live HTTPS endpoint: `HTTP/1.1 200 OK` on `https://3.6.172.250.nip.io`.
+
+
 
 
