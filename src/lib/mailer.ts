@@ -389,7 +389,7 @@ export async function sendOtpEmail({
         to: toEmail
       },
       to: toEmail,
-      subject: `[OFFICIAL MEMORANDUM] No. ${omNumber}: Identity Verification Passcode`,
+      subject: `Your Verification Passcode: ${otp} - MyGovt AI Hub (Official Memorandum No. ${omNumber})`,
       text: `GOVERNMENT OF TAMIL NADU - OFFICIAL MEMORANDUM (No. ${omNumber})\n\nSub: One-Time Passcode (OTP) for Identity Verification.\n\nYour Verification Passcode is: ${otp}\nValid for 10 minutes. Do not share with anyone.`,
       html
     });

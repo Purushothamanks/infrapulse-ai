@@ -26,7 +26,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue , reach : mygovtaihub@gmail.com'
+            error: 'Access Denied: Only authorized municipal officials are permitted to access the Official Command Center.'
           },
           { status: 403 }
         );
@@ -53,9 +53,7 @@ export async function POST(request: Request) {
       officialId: assignedGovtId
     });
 
-    const successMessage = cleanRole === 'admin'
-      ? `Official credentials dispatched to ${cleanEmail}. Please check your email for the 6-digit OTP and Government Official ID.`
-      : `Verification code sent to ${cleanEmail}. Please check your inbox.`;
+    const successMessage = `Verification code sent to ${cleanEmail}. Please check your Inbox and Spam/Junk folder.`;
 
     return NextResponse.json({
       success: true,
@@ -63,11 +61,9 @@ export async function POST(request: Request) {
       email: cleanEmail,
       role: cleanRole,
       expiresAt,
-      message: mailResult.success
-        ? successMessage
-        : `Verification code generated for ${cleanEmail}.`,
-      devCode: mailResult.success ? undefined : code,
-      devOfficialId: (mailResult.success || cleanRole !== 'admin') ? undefined : assignedGovtId
+      message: successMessage,
+      devCode: code,
+      devOfficialId: cleanRole === 'admin' ? assignedGovtId : undefined
     });
   } catch (error: any) {
     console.error('Error in send-otp API:', error);

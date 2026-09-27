@@ -5,7 +5,8 @@ import { useAuth } from '@/context/AuthContext';
 import {
   Smartphone,
   Leaf,
-  LogOut
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -25,20 +26,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveFilter,
   totalActiveHazards
 }) => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-emerald-900/40 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md px-3 sm:px-6 lg:px-8 py-2.5 transition-colors">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
-        {/* Brand Logo */}
+        {/* Brand Logo & Brand Badge */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <img
             src="/logo.png"
             alt="MyGovt AI Hub Logo"
             className="h-9 sm:h-10 w-auto object-contain rounded-xl shadow-xs"
           />
-          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wide bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-            COMMAND CENTER
+          <span className="hidden md:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 uppercase">
+            MY GOVT AI HUB
           </span>
         </div>
 
@@ -67,19 +68,14 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden md:inline">Mobile View</span>
           </button>
 
-          {/* TOP RIGHT: ADMIN PROFILE WITH OUTSIDE LOGOUT BUTTON */}
+          {/* TOP RIGHT: ADMIN PROFILE (ONLY "Municipal Admin") WITH OUTSIDE LOGOUT BUTTON */}
           <div className="flex items-center gap-2">
             {/* Profile Info Pill */}
-            <div className="flex items-center gap-2 p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 shadow-xs">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
-                {(user?.name || 'K. S. Purushothaman').replace(/commissioner\s*/gi, '').trim().charAt(0) || 'K'}
-              </div>
-              <div className="text-left hidden md:block">
-                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 block truncate max-w-[150px]">
-                  {(user?.name || 'K. S. Purushothaman').replace(/commissioner\s*/gi, '').trim() || 'K. S. Purushothaman'}
-                </span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono block">Municipal Admin</span>
-              </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 shadow-xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                Municipal Admin
+              </span>
             </div>
 
             {/* Prominent Outside Logout Button */}
