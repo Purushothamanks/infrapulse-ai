@@ -12,38 +12,40 @@ import {
   KeyRound,
   CheckCircle2,
   AlertCircle,
-  Fingerprint,
+  CreditCard,
   Loader2,
   RefreshCw,
   ArrowLeft,
   Lock,
   Inbox,
   LogIn,
-  UserPlus
+  UserPlus,
+  SendHorizontal
 } from 'lucide-react';
 
 const AUTHORIZED_ADMIN_EMAILS = ['mygovtaihub@gmail.com'];
 const isAuthorizedAdmin = (e: string) => AUTHORIZED_ADMIN_EMAILS.includes((e || '').trim().toLowerCase());
 
 export const AuthView: React.FC = () => {
-  const { signIn, requestOtp, verifyOtpAndLogin } = useAuth();
+  const { signIn, issueAdminCard, requestOtp, verifyOtpAndLogin } = useAuth();
 
-  // Mode: 'signin' (old/returning users or admin - enter email only) vs 'signup' (1st time only - email verification OTP)
+  // Mode: 'signin' (Admin via Card / Existing Citizen) vs 'signup' (1st time Citizen email OTP verification)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [selectedRole, setSelectedRole] = useState<UserRole>('admin');
   const [step, setStep] = useState<'input' | 'verify'>('input');
 
-  // Form Fields - All start completely blank so users enter manually
+  // Form Fields
   const [name, setName] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [officialId, setOfficialId] = useState<string>('');
+  const [email, setEmail] = useState<string>('mygovtaihub@gmail.com');
+  const [cardNumber, setCardNumber] = useState<string>('');
   const [otpCode, setOtpCode] = useState<string>('');
 
-  // Status
+  // Status & Loaders
   const [devCodeHint, setDevCodeHint] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isIssuingCard, setIsIssuingCard] = useState<boolean>(false);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
 
   // Countdown timer for resend
@@ -71,46 +73,105 @@ export const AuthView: React.FC = () => {
     setSuccessMessage('');
     setDevCodeHint(null);
     setOtpCode('');
-    setEmail('');
-    setName('');
-    setOfficialId('');
+    setCardNumber('');
+    if (role === 'admin') {
+      setEmail('mygovtaihub@gmail.com');
+    } else {
+      setEmail('');
+      setName('');
+    }
   };
 
-  // 1. SIGN IN: Direct login with email for returning users and admin
-  const handleSignIn = async (e: React.FormEvent) => {
+  // 1. ADMIN LOGIN WITH PERMANENT CARD NUMBER (NO OTP REQUIRED)
+  const handleAdminCardLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanCard = cardNumber.trim();
+
+    if (!isAuthorizedAdmin(cleanEmail)) {
+      setErrorMessage('Access Denied: Only authorized municipal officials are permitted to access the Official Command Center. For any issue, reach: mygovtaihub@gmail.com');
+      return;
+    }
+
+    if (!cleanCard) {
+      setErrorMessage('Please enter your Permanent Municipal Security Card Number.');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const res = await signIn(cleanEmail, 'admin', cleanCard);
+
+      if (res.success) {
+        setSuccessMessage('Card verified successfully! Accessing Municipal Command Center...');
+      } else {
+        setErrorMessage(res.error || 'Invalid Municipal Security Card Number. Please verify your card or request issuance below.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Connection error. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 2. ADMIN 1ST-TIME CARD ISSUANCE TRIGGER
+  const handleIssueAdminCard = async () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!isAuthorizedAdmin(cleanEmail)) {
+      setErrorMessage('Unauthorized: Only designated municipal administrators can receive an official security card. Contact: mygovtaihub@gmail.com');
+      return;
+    }
+
+    setIsIssuingCard(true);
+
+    try {
+      const res = await issueAdminCard(cleanEmail);
+
+      if (res.success) {
+        setSuccessMessage(res.message || `Permanent Security Card dispatched to ${cleanEmail}. Please check your email and enter your card number above.`);
+      } else {
+        setErrorMessage(res.error || 'Failed to dispatch Security Card email.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Connection error while issuing card.');
+    } finally {
+      setIsIssuingCard(false);
+    }
+  };
+
+  // 3. CITIZEN SIGN IN
+  const handleCitizenSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
 
     const cleanEmail = email.trim().toLowerCase();
 
-    if (selectedRole === 'admin') {
-      if (!isAuthorizedAdmin(cleanEmail)) {
-        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to access the Official Command Center. For any issue, reach: mygovtaihub@gmail.com');
-        return;
-      }
-      // Official security policy: Admin login ALWAYS triggers live OTP verification every time!
-      await handleRequestOtp(e);
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setErrorMessage('Please enter a valid email address.');
       return;
-    } else {
-      if (!cleanEmail || !cleanEmail.includes('@')) {
-        setErrorMessage('Please enter a valid email address.');
-        return;
-      }
     }
 
     setIsLoading(true);
 
     try {
-      const res = await signIn(cleanEmail, selectedRole);
+      const res = await signIn(cleanEmail, 'citizen');
 
       if (res.success) {
         setSuccessMessage('Authentication successful! Loading dashboard...');
       } else {
         if (res.notRegistered) {
-          setErrorMessage(res.error || 'Account not registered yet. Please click the Sign Up tab for 1st-time email verification.');
+          setErrorMessage(res.error || "Account not registered yet. Please select the 'Sign Up (1st Time Only)' tab to complete email verification.");
         } else {
-          setErrorMessage(res.error || 'Failed to sign in. Please verify your credentials.');
+          setErrorMessage(res.error || 'Failed to sign in. Please check your credentials.');
         }
       }
     } catch (err: any) {
@@ -120,7 +181,7 @@ export const AuthView: React.FC = () => {
     }
   };
 
-  // 2. SIGN UP STEP 1: Request OTP for 1st-time users
+  // 4. CITIZEN SIGN UP STEP 1: Request OTP
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -129,33 +190,27 @@ export const AuthView: React.FC = () => {
 
     const cleanEmail = email.trim().toLowerCase();
 
-    // Client-side quick validation for Admin
-    if (selectedRole === 'admin') {
-      if (!isAuthorizedAdmin(cleanEmail)) {
-        setErrorMessage('Unauthorized: Only designated municipal administrators are permitted to register the Official Command Center. For any issue , reach : mygovtaihub@gmail.com');
-        return;
-      }
-    } else {
-      if (!cleanEmail || !cleanEmail.includes('@')) {
-        setErrorMessage('Please enter a valid email address.');
-        return;
-      }
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (!name.trim()) {
+      setErrorMessage('Please enter your full name.');
+      return;
     }
 
     setIsLoading(true);
 
     try {
-      const res = await requestOtp(cleanEmail, selectedRole, name.trim());
+      const res = await requestOtp(cleanEmail, 'citizen', name.trim());
 
       if (res.success) {
         setStep('verify');
-        setSuccessMessage(res.message || `Verification email dispatched to ${cleanEmail}`);
+        setSuccessMessage(res.message || `Verification code sent to ${cleanEmail}`);
         if (res.devCode) {
           setDevCodeHint(res.devCode);
           setOtpCode(res.devCode);
-          if (res.devOfficialId) {
-            setOfficialId(res.devOfficialId);
-          }
         }
         setResendCooldown(30);
       } else {
@@ -168,7 +223,7 @@ export const AuthView: React.FC = () => {
     }
   };
 
-  // 3. SIGN UP STEP 2: Verify OTP and Register
+  // 5. CITIZEN SIGN UP STEP 2: Verify OTP
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -179,25 +234,20 @@ export const AuthView: React.FC = () => {
       return;
     }
 
-    if (selectedRole === 'admin' && !officialId.trim()) {
-      setErrorMessage('Please enter the Government Official ID provided in your verification email.');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
       const res = await verifyOtpAndLogin(
         email.trim().toLowerCase(),
         otpCode.trim(),
-        selectedRole === 'admin' ? officialId.trim() : undefined,
+        undefined,
         name.trim()
       );
 
       if (res.success) {
-        setSuccessMessage('Registration & credentials verified! Logging you in...');
+        setSuccessMessage('Registration verified! Logging you in...');
       } else {
-        setErrorMessage(res.error || 'Invalid verification credentials. Please check your OTP and Govt ID.');
+        setErrorMessage(res.error || 'Invalid verification code. Please check your email.');
       }
     } catch (err: any) {
       setErrorMessage(err?.message || 'Verification failed. Please try again.');
@@ -231,7 +281,7 @@ export const AuthView: React.FC = () => {
           </p>
         </div>
 
-        {/* PRIMARY TOGGLE: SIGN IN vs SIGN UP (1st Time Only) */}
+        {/* PRIMARY TOGGLE: SIGN IN vs SIGN UP */}
         <div className="grid grid-cols-2 rounded-2xl bg-slate-200 dark:bg-slate-800/90 p-1 shadow-inner text-xs font-bold">
           <button
             type="button"
@@ -244,7 +294,7 @@ export const AuthView: React.FC = () => {
           >
             <LogIn className="w-4 h-4 text-emerald-500" />
             <span>Sign In</span>
-            <span className="text-[10px] font-normal opacity-75">(Existing / Admin)</span>
+            <span className="text-[10px] font-normal opacity-75">(Card / Email)</span>
           </button>
           <button
             type="button"
@@ -257,7 +307,7 @@ export const AuthView: React.FC = () => {
           >
             <UserPlus className="w-4 h-4 text-emerald-500" />
             <span>Sign Up</span>
-            <span className="text-[10px] font-normal opacity-75">(1st Time Only)</span>
+            <span className="text-[10px] font-normal opacity-75">(1st Time Citizen)</span>
           </button>
         </div>
 
@@ -296,29 +346,27 @@ export const AuthView: React.FC = () => {
             <div>
               <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                {authMode === 'signin'
-                  ? selectedRole === 'admin'
-                    ? 'Official Admin Sign In'
-                    : 'Civilian Citizen Sign In'
-                  : selectedRole === 'admin'
-                  ? 'Official 1st-Time Verification'
+                {selectedRole === 'admin'
+                  ? 'Official Admin Command Sign In'
+                  : authMode === 'signin'
+                  ? 'Civilian Citizen Sign In'
                   : 'New Citizen Registration'}
               </h2>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {authMode === 'signin'
-                  ? selectedRole === 'admin'
-                    ? 'Enter authorized email to receive live 6-digit OTP passcode'
-                    : 'Enter your registered email to access portal'
+                {selectedRole === 'admin'
+                  ? 'Authenticate with your Permanent Municipal Security Card'
+                  : authMode === 'signin'
+                  ? 'Enter your registered email to access portal'
                   : step === 'input'
-                  ? 'Enter details to receive 2-Factor OTP verification'
-                  : 'Enter the verification code dispatched to your email'}
+                  ? 'Enter details to receive email verification code'
+                  : 'Enter the 6-digit code dispatched to your email'}
               </p>
             </div>
             <span
               className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border ${
                 selectedRole === 'admin'
-                  ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-300 dark:border-red-500/30'
-                  : 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30'
+                  ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30'
+                  : 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-300 dark:border-sky-500/30'
               }`}
             >
               {selectedRole === 'admin' ? 'OFFICIAL GOV' : 'PUBLIC CITIZEN'}
@@ -352,122 +400,113 @@ export const AuthView: React.FC = () => {
           )}
 
           {/* ============================================================ */}
-          {/* VIEW A: SIGN IN MODE (Direct login with email only)         */}
+          {/* VIEW A: ADMIN OFFICIAL - PERMANENT CARD LOGIN                */}
           {/* ============================================================ */}
-          {authMode === 'signin' && (
-            <form onSubmit={handleSignIn} className="space-y-4">
+          {selectedRole === 'admin' ? (
+            <form onSubmit={handleAdminCardLogin} className="space-y-4">
+              {/* Email Field */}
               <div>
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  {selectedRole === 'admin' ? 'Authorized Municipal Email' : 'Registered Email Address'}{' '}
-                  <span className="text-red-500">*</span>
+                  Authorized Municipal Email <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
-                  <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                  <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={
-                      selectedRole === 'admin'
-                        ? 'officer.email@domain.gov'
-                        : 'your.registered.email@example.com'
-                    }
-                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
+                    placeholder="mygovtaihub@gmail.com"
+                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200 font-mono text-xs"
                   />
                 </div>
-                {selectedRole === 'admin' ? (
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
-                    For any issue , reach :{' '}
-                    <a
-                      href="mailto:mygovtaihub@gmail.com"
-                      className="text-emerald-600 dark:text-emerald-400 hover:underline font-mono"
-                    >
-                      mygovtaihub@gmail.com
-                    </a>
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
-                    First time user? Switch to{' '}
-                    <button
-                      type="button"
-                      onClick={() => handleModeChange('signup')}
-                      className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
-                    >
-                      Sign Up (1st Time Only)
-                    </button>
-                  </span>
-                )}
               </div>
 
+              {/* Permanent Card Number Field */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Enter Your Card Number <span className="text-red-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                    Permanent Security Number
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
+                  <CreditCard className="w-5 h-5 text-emerald-500 shrink-0" />
+                  <input
+                    type="text"
+                    required
+                    value={cardNumber}
+                    onChange={(e) => setCardNumber(e.target.value.toUpperCase())}
+                    placeholder="TN-MUNI-XXXX-XXXX"
+                    className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100 font-mono tracking-wider uppercase font-bold text-xs"
+                  />
+                </div>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
+                  Enter the permanent card number dispatched to your official email.
+                </span>
+              </div>
+
+              {/* 1st-Time Admin Helper Box */}
+              <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/60 space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-900 dark:text-emerald-300">
+                  <Lock className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>First time logging in or don't have your card?</span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Your card number is generated once and sent to your email. Click below to issue and dispatch your <strong>Permanent Municipal Security Card</strong> to <strong className="font-mono text-emerald-800 dark:text-emerald-300">mygovtaihub@gmail.com</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleIssueAdminCard}
+                  disabled={isIssuingCard || isLoading || !email.trim()}
+                  className="w-full py-2 px-3 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-slate-800 text-emerald-700 dark:text-emerald-300 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isIssuingCard ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Dispatching Permanent Card to Email...</span>
+                    </>
+                  ) : (
+                    <>
+                      <SendHorizontal className="w-3.5 h-3.5" />
+                      <span>Issue / Email My Permanent Security Card</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Login Button */}
               <button
                 type="submit"
-                disabled={isLoading || !email.trim()}
+                disabled={isLoading || isIssuingCard || !email.trim() || !cardNumber.trim()}
                 className="w-full py-3 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Signing in...</span>
+                    <span>Verifying Card...</span>
                   </>
                 ) : (
                   <>
                     <LogIn className="w-4 h-4" />
-                    <span>
-                      {selectedRole === 'admin'
-                        ? 'Verify Official Identity & Send OTP'
-                        : 'Sign In to Citizen Portal'}
-                    </span>
+                    <span>Sign In with Security Card</span>
                   </>
                 )}
               </button>
             </form>
-          )}
-
-          {/* ============================================================ */}
-          {/* VIEW B: SIGN UP MODE (1st Time Only - OTP Verification)      */}
-          {/* ============================================================ */}
-          {authMode === 'signup' && (
+          ) : (
+            /* ============================================================ */
+            /* VIEW B: CIVILIAN CITIZEN FLOW                                */
+            /* ============================================================ */
             <>
-              {step === 'input' ? (
-                <form onSubmit={handleRequestOtp} className="space-y-4">
-                  {/* Admin Note */}
-                  {selectedRole === 'admin' && (
-                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-1 text-xs">
-                      <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
-                        <Lock className="w-3.5 h-3.5 text-amber-500" />
-                        <span>1st-Time Official Verification</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                        Enter your official authorized email. A <strong>One-Time Security OTP</strong> and <strong>Government Official ID</strong> will be dispatched to your inbox.
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Citizen Name Field */}
-                  {selectedRole === 'citizen' && (
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                        Your Full Name <span className="text-red-500">*</span>
-                      </label>
-                      <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
-                        <UserIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                        <input
-                          type="text"
-                          required
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="Enter your full name (e.g. Arjun Verma)"
-                          className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Email Address Field */}
+              {authMode === 'signin' ? (
+                /* CITIZEN SIGN IN */
+                <form onSubmit={handleCitizenSignIn} className="space-y-4">
                   <div>
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      {selectedRole === 'admin' ? 'Authorized Municipal Email' : 'Email Address'} <span className="text-red-500">*</span>
+                      Registered Email Address <span className="text-red-500">*</span>
                     </label>
                     <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
                       <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" />
@@ -476,176 +515,203 @@ export const AuthView: React.FC = () => {
                         required
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder={selectedRole === 'admin' ? 'officer.email@domain.gov' : 'your.email@example.com'}
+                        placeholder="your.registered.email@example.com"
                         className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
                       />
                     </div>
-                    {selectedRole === 'admin' && (
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
-                        For any issue , reach :{' '}
-                        <a href="mailto:mygovtaihub@gmail.com" className="text-emerald-600 dark:text-emerald-400 hover:underline font-mono">
-                          mygovtaihub@gmail.com
-                        </a>
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isLoading || !email.trim() || (selectedRole === 'citizen' && !name.trim())}
-                    className="w-full py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Dispatching Verification Email...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="w-4 h-4" />
-                        <span>
-                          {selectedRole === 'admin'
-                            ? 'Send OTP & Govt ID to Email'
-                            : 'Send Verification Code to Email'}
-                        </span>
-                      </>
-                    )}
-                  </button>
-                </form>
-              ) : (
-                /* STEP 2: CREDENTIALS & OTP VERIFICATION */
-                <form onSubmit={handleVerifyOtp} className="space-y-4">
-                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
-                    <div className="text-slate-600 dark:text-slate-300 text-[11px] flex items-center gap-1.5">
-                      <Inbox className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>Verification email sent to:</span>
-                    </div>
-                    <div className="font-mono font-bold text-slate-900 dark:text-white flex items-center justify-between">
-                      <span className="truncate">{email}</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 block">
+                      First time user? Switch to{' '}
                       <button
                         type="button"
-                        onClick={() => {
-                          setStep('input');
-                          setErrorMessage('');
-                          setSuccessMessage('');
-                        }}
-                        className="text-emerald-600 dark:text-emerald-400 hover:underline text-[11px] font-sans flex items-center gap-1 cursor-pointer shrink-0 ml-2"
+                        onClick={() => handleModeChange('signup')}
+                        className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
                       >
-                        <ArrowLeft className="w-3 h-3" /> Change
+                        Sign Up (1st Time Only)
                       </button>
-                    </div>
-                    {selectedRole === 'admin' && (
-                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400/90 font-medium">
-                        📬 Check your inbox for both your <strong>6-digit OTP</strong> and your <strong>Government Official ID</strong>.
-                      </p>
-                    )}
+                    </span>
                   </div>
-
-                  {/* Dev/Local Testing Banner if SMTP not configured */}
-                  {devCodeHint && (
-                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1">
-                      <div className="font-bold flex items-center gap-1.5">
-                        <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Auto-Generated Credentials (Test Mode):</span>
-                      </div>
-                      <div className="text-sm font-mono text-amber-900 dark:text-amber-100">
-                        OTP: <span className="font-bold">{devCodeHint}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 6-Digit OTP Code Input */}
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                      Enter 6-Digit Verification Code (OTP) <span className="text-red-500">*</span>
-                    </label>
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
-                      <KeyRound className="w-5 h-5 text-emerald-500 shrink-0" />
-                      <input
-                        type="text"
-                        required
-                        maxLength={6}
-                        autoFocus
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                        placeholder="• • • • • •"
-                        className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100 font-mono tracking-[0.4em] text-lg font-bold text-center"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Government Official ID Input (Only for Admin - from email) */}
-                  {selectedRole === 'admin' && (
-                    <div>
-                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                        Government Official ID Number <span className="text-red-500">*</span>
-                      </label>
-                      <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
-                        <Fingerprint className="w-5 h-5 text-sky-500 shrink-0" />
-                        <input
-                          type="text"
-                          required
-                          value={officialId}
-                          onChange={(e) => setOfficialId(e.target.value)}
-                          placeholder="Enter Govt ID from email (e.g. TN-SAMPLE-2026)"
-                          className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100 font-mono uppercase text-xs"
-                        />
-                      </div>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 block">
-                        Copy and paste the Government Official ID provided in your verification email.
-                      </span>
-                    </div>
-                  )}
 
                   <button
                     type="submit"
-                    disabled={isLoading || otpCode.length < 6 || (selectedRole === 'admin' && !officialId.trim())}
+                    disabled={isLoading || !email.trim()}
                     className="w-full py-3 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Verifying & Registering...</span>
+                        <span>Signing in...</span>
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>
-                          {selectedRole === 'admin'
-                            ? 'Verify Credentials & Access Command Center'
-                            : 'Verify OTP & Complete Registration'}
-                        </span>
+                        <LogIn className="w-4 h-4" />
+                        <span>Sign In to Citizen Portal</span>
                       </>
                     )}
                   </button>
-
-                  {/* Resend button */}
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <button
-                      type="button"
-                      onClick={handleRequestOtp}
-                      disabled={isLoading || resendCooldown > 0}
-                      className="text-slate-600 dark:text-slate-400 hover:text-emerald-500 flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-                      <span>
-                        {resendCooldown > 0 ? `Resend email in ${resendCooldown}s` : 'Resend Email'}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep('input');
-                        setErrorMessage('');
-                        setSuccessMessage('');
-                        setDevCodeHint(null);
-                      }}
-                      className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
-                    >
-                      Back to start
-                    </button>
-                  </div>
                 </form>
+              ) : (
+                /* CITIZEN SIGN UP (1st Time Only) */
+                <>
+                  {step === 'input' ? (
+                    <form onSubmit={handleRequestOtp} className="space-y-4">
+                      {/* Name Field */}
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                          Your Full Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
+                          <UserIcon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                          <input
+                            type="text"
+                            required
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="Enter your full name (e.g. Arjun Verma)"
+                            className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Email Field */}
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                          Email Address <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
+                          <Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                          <input
+                            type="email"
+                            required
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="your.email@example.com"
+                            className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-200"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoading || !email.trim() || !name.trim()}
+                        className="w-full py-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Dispatching Verification Email...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Mail className="w-4 h-4" />
+                            <span>Send Verification Code to Email</span>
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  ) : (
+                    /* STEP 2: VERIFY CITIZEN OTP */
+                    <form onSubmit={handleVerifyOtp} className="space-y-4">
+                      <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
+                        <div className="text-slate-600 dark:text-slate-300 text-[11px] flex items-center gap-1.5">
+                          <Inbox className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Verification email sent to:</span>
+                        </div>
+                        <div className="font-mono font-bold text-slate-900 dark:text-white flex items-center justify-between">
+                          <span className="truncate">{email}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStep('input');
+                              setErrorMessage('');
+                              setSuccessMessage('');
+                            }}
+                            className="text-emerald-600 dark:text-emerald-400 hover:underline text-[11px] font-sans flex items-center gap-1 cursor-pointer shrink-0 ml-2"
+                          >
+                            <ArrowLeft className="w-3 h-3" /> Change
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Dev / Local Testing Code */}
+                      {devCodeHint && (
+                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1">
+                          <div className="font-bold flex items-center gap-1.5">
+                            <KeyRound className="w-3.5 h-3.5 text-amber-500" />
+                            <span>Auto-Generated Code (Test Mode):</span>
+                          </div>
+                          <div className="text-sm font-mono text-amber-900 dark:text-amber-100">
+                            OTP: <span className="font-bold">{devCodeHint}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 6-Digit OTP Code Input */}
+                      <div>
+                        <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                          Enter 6-Digit Verification Code <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex items-center gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-200 focus-within:border-emerald-500 transition-colors">
+                          <KeyRound className="w-5 h-5 text-emerald-500 shrink-0" />
+                          <input
+                            type="text"
+                            required
+                            maxLength={6}
+                            autoFocus
+                            value={otpCode}
+                            onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                            placeholder="• • • • • •"
+                            className="bg-transparent w-full outline-none text-slate-900 dark:text-slate-100 font-mono tracking-[0.4em] text-lg font-bold text-center"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={isLoading || otpCode.length < 6}
+                        className="w-full py-3 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Verifying & Registering...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Verify Code & Complete Registration</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Resend button */}
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <button
+                          type="button"
+                          onClick={handleRequestOtp}
+                          disabled={isLoading || resendCooldown > 0}
+                          className="text-slate-600 dark:text-slate-400 hover:text-emerald-500 flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+                          <span>
+                            {resendCooldown > 0 ? `Resend email in ${resendCooldown}s` : 'Resend Email'}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStep('input');
+                            setErrorMessage('');
+                            setSuccessMessage('');
+                            setDevCodeHint(null);
+                          }}
+                          className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+                        >
+                          Back to start
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </>
               )}
             </>
           )}
@@ -653,7 +719,7 @@ export const AuthView: React.FC = () => {
 
         {/* Security / Compliance Tag */}
         <div className="text-center text-[11px] text-slate-400 dark:text-slate-500 font-mono flex items-center justify-center gap-2">
-          <span>🔒 Two-Factor Verified Access</span>
+          <span>🔒 Verified Access</span>
           <span>•</span>
           <span>Government of Tamil Nadu</span>
         </div>

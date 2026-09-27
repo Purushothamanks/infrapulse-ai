@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getRegisteredUser, registerUser } from '@/lib/userStore';
+import { getRegisteredUser, issueAdminCardNumber, verifyAdminCardNumber } from '@/lib/userStore';
+import { sendAdminSecurityCardEmail } from '@/lib/mailer';
 
 const AUTHORIZED_ADMIN_EMAILS = ['mygovtaihub@gmail.com'];
 const isAuthorizedAdmin = (e: string) => AUTHORIZED_ADMIN_EMAILS.includes((e || '').trim().toLowerCase());
@@ -7,7 +8,7 @@ const isAuthorizedAdmin = (e: string) => AUTHORIZED_ADMIN_EMAILS.includes((e || 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, role } = body;
+    const { email, role, cardNumber, action } = body;
 
     const cleanEmail = (email || '').trim().toLowerCase();
     const selectedRole = role === 'admin' ? 'admin' : 'citizen';
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Municipal Admin Sign In - ALWAYS requires live OTP verification!
+    // 1. Municipal Admin Operations (Permanent Card Authentication)
     if (selectedRole === 'admin' || isAuthorizedAdmin(cleanEmail)) {
       if (!isAuthorizedAdmin(cleanEmail)) {
         return NextResponse.json(
@@ -31,14 +32,57 @@ export async function POST(request: Request) {
         );
       }
 
-      return NextResponse.json(
-        {
-          success: false,
-          requiresOtp: true,
-          error: 'Official Security Protocol: Municipal Admin access requires live OTP verification every time. Please authenticate using the 6-digit OTP dispatched to your official email.'
-        },
-        { status: 401 }
-      );
+      // 1A. Admin requests 1st-time Card issuance or resending card
+      if (action === 'issue_card') {
+        const { cardNumber: issuedCard, isNew, user } = issueAdminCardNumber(cleanEmail, 'K. S. Purushothaman');
+
+        // Dispatch official security card email
+        await sendAdminSecurityCardEmail({
+          toEmail: cleanEmail,
+          recipientName: user.name,
+          cardNumber: issuedCard,
+          department: user.department
+        });
+
+        return NextResponse.json({
+          success: true,
+          cardIssued: true,
+          isNew,
+          message: isNew
+            ? `Your Permanent Municipal Security Card Number has been generated and sent to ${cleanEmail}. Please enter your card number to log in.`
+            : `Your Permanent Municipal Security Card Number has been resent to ${cleanEmail}. Please enter your card number to log in.`
+        });
+      }
+
+      // 1B. Admin Login via Permanent Card Number
+      if (!cardNumber || !cardNumber.trim()) {
+        return NextResponse.json(
+          {
+            success: false,
+            requiresCard: true,
+            error: 'Please enter your Permanent Municipal Security Card Number to log in. If this is your first time, click "Issue My Permanent Security Card".'
+          },
+          { status: 400 }
+        );
+      }
+
+      const verification = verifyAdminCardNumber(cleanEmail, cardNumber.trim());
+
+      if (!verification.valid || !verification.user) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: verification.error || 'Invalid Municipal Security Card Number.'
+          },
+          { status: 401 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        user: verification.user,
+        message: `Welcome back, ${verification.user.name}.`
+      });
     }
 
     // 2. Returning Civilian Citizen Sign In

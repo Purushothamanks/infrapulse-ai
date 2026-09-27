@@ -10,41 +10,232 @@ function getSmtpConfig() {
   const port = parseInt(process.env.SMTP_PORT || '465', 10);
   const user = process.env.SMTP_USER || process.env.GMAIL_USER;
   const pass = process.env.SMTP_PASS || process.env.GMAIL_APP_PASS;
-  const from = process.env.SMTP_FROM || `"MyGovt AI Hub" <${SENDER_EMAIL}>`;
+  const from = `"MyGovt AI Hub" <${SENDER_EMAIL}>`;
 
   return { host, port, user, pass, from };
 }
 
-interface SendOtpParams {
+/**
+ * Common modern, clean CSS styles for executive emails
+ */
+const EMAIL_BASE_HEAD = `
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f8fafc;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      color: #0f172a;
+    }
+    a { color: #059669; text-decoration: none; }
+  </style>
+`;
+
+/**
+ * 1. Dispatches the Permanent Municipal Security Card to the Admin (only once / on request).
+ */
+export async function sendAdminSecurityCardEmail({
+  toEmail,
+  recipientName = 'K. S. Purushothaman',
+  cardNumber,
+  department = 'Tamil Nadu Municipal Administration & Urban Water Supply'
+}: {
   toEmail: string;
-  otp: string;
   recipientName?: string;
-  role: 'admin' | 'citizen';
-  officialId?: string;
+  cardNumber: string;
+  department?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const { host, port, user, pass, from } = getSmtpConfig();
+
+  console.log(`[AUTH-CARD] Issuing Permanent Security Card to ${toEmail}: ${cardNumber}`);
+
+  if (!user || !pass) {
+    console.warn('[AUTH-CARD-WARN] SMTP credentials not set in environment.');
+    return { success: false, error: 'SMTP_NOT_CONFIGURED' };
+  }
+
+  try {
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass }
+    });
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  ${EMAIL_BASE_HEAD}
+  <title>Official Municipal Security Card</title>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width: 580px; margin: 0 auto;">
+    <tr>
+      <td>
+        <!-- Brand Header -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
+          <tr>
+            <td align="left">
+              <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #059669;">
+                Government of Tamil Nadu
+              </div>
+              <div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.4px; margin-top: 2px;">
+                MyGovt AI Hub
+              </div>
+            </td>
+            <td align="right" valign="middle">
+              <span style="display: inline-block; padding: 4px 10px; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 9999px; font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: 0.5px;">
+                Official Credential
+              </span>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Main Card Container -->
+        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); overflow: hidden; padding: 32px;">
+          
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+            Dear ${recipientName},
+          </div>
+
+          <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 24px 0;">
+            Your official <strong>Permanent Municipal Security Card</strong> has been generated. Use this permanent card number to authenticate into the Municipal Command Center. No OTP will be required.
+          </p>
+
+          <!-- DIGITAL SECURITY CARD DISPLAY -->
+          <div style="background: linear-gradient(135deg, #064e3b 0%, #0f172a 100%); border: 1px solid #059669; border-radius: 14px; padding: 24px; color: #ffffff; box-shadow: 0 8px 24px rgba(6, 78, 59, 0.25); margin-bottom: 24px;">
+            
+            <!-- Card Header -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 20px;">
+              <tr>
+                <td>
+                  <div style="font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #a7f3d0;">
+                    TAMIL NADU MUNICIPAL ADMINISTRATION
+                  </div>
+                  <div style="font-size: 13px; font-weight: 700; color: #ffffff; margin-top: 2px;">
+                    Permanent Security Access Card
+                  </div>
+                </td>
+                <td align="right" valign="top">
+                  <span style="display: inline-block; background-color: rgba(167, 243, 208, 0.15); border: 1px solid rgba(167, 243, 208, 0.4); border-radius: 6px; padding: 3px 8px; font-size: 10px; font-weight: 700; color: #a7f3d0; text-transform: uppercase;">
+                    ACTIVE & PERMANENT
+                  </span>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Card Number -->
+            <div style="background-color: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 20px;">
+              <div style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: #94a3b8; margin-bottom: 6px;">
+                MUNICIPAL CARD NUMBER
+              </div>
+              <div style="font-size: 26px; font-weight: 800; letter-spacing: 4px; color: #6ee7b7; font-family: 'Courier New', Courier, monospace;">
+                ${cardNumber}
+              </div>
+            </div>
+
+            <!-- Card Metadata -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 11px; color: #cbd5e1;">
+              <tr>
+                <td style="padding: 4px 0; width: 40%; color: #94a3b8;">Issued To:</td>
+                <td style="padding: 4px 0; font-weight: 700; color: #ffffff;">${recipientName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #94a3b8;">Authorized Email:</td>
+                <td style="padding: 4px 0; font-weight: 600; color: #ffffff; font-family: monospace;">${toEmail}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #94a3b8;">Department:</td>
+                <td style="padding: 4px 0; color: #e2e8f0;">${department}</td>
+              </tr>
+            </table>
+
+          </div>
+
+          <!-- Instruction Callout -->
+          <div style="background-color: #f8fafc; border-left: 3px solid #059669; padding: 14px 18px; border-radius: 4px; margin-bottom: 28px;">
+            <div style="font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+              📌 How to use this card number:
+            </div>
+            <div style="font-size: 12px; line-height: 1.5; color: #475569;">
+              Whenever you log in to the application, select <strong>Admin Official</strong>, enter your official email, and enter this <strong>Card Number</strong>. Keep this card number safe.
+            </div>
+          </div>
+
+          <!-- Action Button -->
+          <div style="text-align: center; margin-bottom: 12px;">
+            <a href="https://3.6.172.250.nip.io" style="display: inline-block; background-color: #059669; color: #ffffff; font-size: 13px; font-weight: 700; padding: 12px 28px; border-radius: 10px; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);">
+              Access Municipal Command Center →
+            </a>
+          </div>
+
+        </div>
+
+        <!-- Minimalist Footer -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px; font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.6;">
+          <tr>
+            <td>
+              Government of Tamil Nadu • Municipal Administration & Urban Water Supply<br />
+              Authorized Support: <a href="mailto:${SENDER_EMAIL}" style="color: #64748b;">${SENDER_EMAIL}</a>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    await transporter.sendMail({
+      from,
+      sender: SENDER_EMAIL,
+      replyTo: SENDER_EMAIL,
+      envelope: {
+        from: SENDER_EMAIL,
+        to: toEmail
+      },
+      to: toEmail,
+      subject: `🏛️ [Government of Tamil Nadu] Your Permanent Municipal Security Card: ${cardNumber}`,
+      text: `Your Permanent Municipal Security Card Number is: ${cardNumber}. Issued to: ${recipientName}. Authorized Email: ${toEmail}. Save this card number for future admin logins.`,
+      html
+    });
+
+    console.log(`[AUTH-CARD-SUCCESS] Permanent card email dispatched to ${toEmail}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error(`[AUTH-CARD-ERROR] Failed to send card email to ${toEmail}:`, err?.message || err);
+    return { success: false, error: err?.message };
+  }
 }
 
 /**
- * Dispatches an ultra-professional, official Government of Tamil Nadu OTP authentication email.
+ * 2. Dispatches an ultra-clean, minimalist OTP verification email for Citizen onboarding.
  */
 export async function sendOtpEmail({
   toEmail,
   otp,
   recipientName,
-  role,
-  officialId
-}: SendOtpParams): Promise<{ success: boolean; error?: string }> {
+  role
+}: {
+  toEmail: string;
+  otp: string;
+  recipientName?: string;
+  role: 'admin' | 'citizen';
+  officialId?: string;
+}): Promise<{ success: boolean; error?: string }> {
   const { host, port, user, pass, from } = getSmtpConfig();
 
-  console.log(`[AUTH-OTP] Generated OTP for ${toEmail} (${role}): ${otp}, Official ID: ${officialId || 'N/A'}`);
+  console.log(`[AUTH-OTP] Generated OTP for ${toEmail} (${role}): ${otp}`);
 
   if (!user || !pass) {
-    console.warn(
-      `[AUTH-EMAIL-WARN] SMTP credentials not set. Set SMTP_USER and SMTP_PASS in .env.local to dispatch live emails.`
-    );
-    return {
-      success: false,
-      error: 'SMTP_NOT_CONFIGURED'
-    };
+    console.warn('[AUTH-EMAIL-WARN] SMTP credentials not set.');
+    return { success: false, error: 'SMTP_NOT_CONFIGURED' };
   }
 
   try {
@@ -56,126 +247,86 @@ export async function sendOtpEmail({
     });
 
     const isOfficial = role === 'admin';
-    const roleBadgeText = isOfficial
-      ? 'Official Municipal Administration Access'
-      : 'Civilian Citizen Portal Access';
     const recipientTitle = isOfficial ? 'Municipal Administrator' : (recipientName || 'Citizen');
 
     const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>One-Time Verification Passcode</title>
+  ${EMAIL_BASE_HEAD}
+  <title>Verification Passcode</title>
 </head>
-<body style="margin: 0; padding: 24px 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9;">
+<body style="margin: 0; padding: 32px 16px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width: 540px; margin: 0 auto;">
     <tr>
-      <td align="center">
-        <!-- Main Card Container -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin: 0 auto;">
-          
-          <!-- Government Header -->
+      <td>
+        <!-- Brand Header -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
           <tr>
-            <td style="background-color: #064e3b; padding: 24px 32px; border-bottom: 3px solid #047857;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td>
-                    <div style="font-size: 11px; font-weight: 700; color: #a7f3d0; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;">
-                      GOVERNMENT OF TAMIL NADU
-                    </div>
-                    <div style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px; line-height: 1.3;">
-                      Municipal Administration & Urban Water Supply
-                    </div>
-                    <div style="font-size: 12px; color: #d1fae5; margin-top: 4px; font-weight: 500;">
-                      MyGovt AI Hub • Identity & Security Gateway
-                    </div>
-                  </td>
-                </tr>
-              </table>
+            <td align="left">
+              <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #059669;">
+                Government of Tamil Nadu
+              </div>
+              <div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.4px; margin-top: 2px;">
+                MyGovt AI Hub
+              </div>
+            </td>
+            <td align="right" valign="middle">
+              <span style="display: inline-block; padding: 4px 10px; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 9999px; font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase;">
+                Verification Code
+              </span>
             </td>
           </tr>
-
-          <!-- Body Content -->
-          <tr>
-            <td style="padding: 32px 32px 24px 32px;">
-              <!-- Role Badge -->
-              <div style="display: inline-block; padding: 4px 12px; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 4px; font-size: 11px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px;">
-                ${roleBadgeText}
-              </div>
-
-              <!-- Salutation -->
-              <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">
-                Dear ${recipientTitle},
-              </div>
-
-              <p style="font-size: 13px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">
-                A sign-in request was initiated for your registered account. Please use the official 6-digit One-Time Passcode (OTP) below to authenticate your session:
-              </p>
-
-              <!-- Monospace OTP Box -->
-              <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 22px; text-align: center; margin: 20px 0;">
-                <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;">
-                  Official One-Time Passcode (OTP)
-                </div>
-                <div style="font-size: 38px; font-weight: 800; letter-spacing: 10px; color: #0f172a; font-family: 'Courier New', Courier, monospace; margin: 4px 0;">
-                  ${otp}
-                </div>
-                <div style="font-size: 12px; color: #64748b; margin-top: 8px;">
-                  ⏱️ Passcode expires in <strong>10 minutes</strong>.
-                </div>
-              </div>
-
-              <!-- Security Information Table -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-top: 24px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; width: 40%;">Account Email</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-family: monospace;">${toEmail}</td>
-                </tr>
-                ${officialId ? `
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Government Official ID</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-family: monospace; font-weight: 700;">${officialId}</td>
-                </tr>
-                ` : ''}
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Authorized Role</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${isOfficial ? 'Municipal Administrator (TN Municipal Administration)' : 'Civilian Citizen Access'}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 14px; color: #64748b; font-weight: 600;">Security Notice</td>
-                  <td style="padding: 10px 14px; color: #b91c1c; font-weight: 600;">Do not share this code with anyone under any circumstances.</td>
-                </tr>
-              </table>
-
-              <p style="font-size: 11px; color: #64748b; line-height: 1.5; margin-top: 24px; margin-bottom: 0;">
-                If you did not initiate this authentication request, please report it immediately to the municipal cyber desk at <a href="mailto:mygovtaihub@gmail.com" style="color: #047857; text-decoration: none;">mygovtaihub@gmail.com</a>.
-              </p>
-            </td>
-          </tr>
-
-          <!-- Government Footer -->
-          <tr>
-            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; font-size: 11px; color: #64748b; line-height: 1.5;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td>
-                    <strong>Government of Tamil Nadu</strong> • Municipal Administration & Urban Water Supply<br />
-                    Ezhilagam Complex, Chepauk, Chennai - 600005, Tamil Nadu, India<br />
-                    Authorized Support: <a href="mailto:mygovtaihub@gmail.com" style="color: #047857; text-decoration: none;">mygovtaihub@gmail.com</a>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-top: 10px; color: #94a3b8; font-size: 10px;">
-                    This is an automated municipal security notification generated by MyGovt AI Hub.
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
         </table>
+
+        <!-- White Card -->
+        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); padding: 32px;">
+          
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+            Hello ${recipientTitle},
+          </div>
+
+          <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 24px 0;">
+            Please use the 6-digit verification code below to verify your email address and access MyGovt AI Hub:
+          </p>
+
+          <!-- OTP Box -->
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #64748b; margin-bottom: 8px;">
+              ONE-TIME VERIFICATION CODE
+            </div>
+            <div style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #0f172a; font-family: 'Courier New', Courier, monospace;">
+              ${otp}
+            </div>
+            <div style="font-size: 12px; color: #64748b; margin-top: 8px;">
+              Expires in 10 minutes • Do not share with anyone
+            </div>
+          </div>
+
+          <!-- Account Details -->
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 12px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+            <tr>
+              <td style="padding: 6px 0; color: #64748b; width: 40%;">Account Email:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a; font-family: monospace;">${toEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding: 6px 0; color: #64748b;">Requested Access:</td>
+              <td style="padding: 6px 0; font-weight: 600; color: #0f172a;">${isOfficial ? 'Municipal Official' : 'Civilian Citizen'}</td>
+            </tr>
+          </table>
+
+        </div>
+
+        <!-- Footer -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px; font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.6;">
+          <tr>
+            <td>
+              Government of Tamil Nadu • Municipal Administration & Urban Water Supply<br />
+              Authorized Support: <a href="mailto:${SENDER_EMAIL}" style="color: #64748b;">${SENDER_EMAIL}</a>
+            </td>
+          </tr>
+        </table>
+
       </td>
     </tr>
   </table>
@@ -185,38 +336,28 @@ export async function sendOtpEmail({
 
     await transporter.sendMail({
       from,
-      to: toEmail,
+      sender: SENDER_EMAIL,
       replyTo: SENDER_EMAIL,
-      subject: `[Government of Tamil Nadu] ${otp} is your MyGovt AI Hub verification passcode`,
-      text: `Your Government of Tamil Nadu verification passcode is: ${otp}. Valid for 10 minutes. Do not share with anyone.`,
+      envelope: {
+        from: SENDER_EMAIL,
+        to: toEmail
+      },
+      to: toEmail,
+      subject: `[Government of Tamil Nadu] ${otp} is your verification code`,
+      text: `Your verification passcode is: ${otp}. Valid for 10 minutes. Do not share with anyone.`,
       html
     });
 
     console.log(`[AUTH-EMAIL-SUCCESS] OTP email dispatched to ${toEmail}`);
     return { success: true };
   } catch (err: any) {
-    console.error(`[AUTH-EMAIL-ERROR] Failed to send email to ${toEmail}:`, err?.message || err);
+    console.error(`[AUTH-EMAIL-ERROR] Failed to send OTP email to ${toEmail}:`, err?.message || err);
     return { success: false, error: err?.message };
   }
 }
 
-interface SendGrievanceStatusParams {
-  toEmail: string;
-  hazardId: string;
-  hazardTitle: string;
-  hazardType?: string;
-  newStatus: string;
-  citizenName?: string;
-  locationAddress: string;
-  ward: string;
-  contractorTeam?: string;
-  scheduledDispatch?: string;
-  workOrderId?: string;
-  estimatedCost?: number;
-}
-
 /**
- * Dispatches an ultra-professional civic grievance status update to the citizen,
+ * 3. Dispatches modern, executive civic grievance status update to the citizen,
  * attaching the official completion report PDF certificate when marked as Completed.
  */
 export async function sendGrievanceStatusEmail({
@@ -232,11 +373,24 @@ export async function sendGrievanceStatusEmail({
   scheduledDispatch,
   workOrderId,
   estimatedCost = 12500
-}: SendGrievanceStatusParams): Promise<{ success: boolean; error?: string }> {
+}: {
+  toEmail: string;
+  hazardId: string;
+  hazardTitle: string;
+  hazardType?: string;
+  newStatus: string;
+  citizenName?: string;
+  locationAddress: string;
+  ward: string;
+  contractorTeam?: string;
+  scheduledDispatch?: string;
+  workOrderId?: string;
+  estimatedCost?: number;
+}): Promise<{ success: boolean; error?: string }> {
   const { host, port, user, pass, from } = getSmtpConfig();
 
   if (!user || !pass) {
-    console.warn(`[STATUS-EMAIL-WARN] SMTP credentials not set. Skipping live email.`);
+    console.warn(`[STATUS-EMAIL-WARN] SMTP credentials not set.`);
     return { success: false, error: 'SMTP_NOT_CONFIGURED' };
   }
 
@@ -250,9 +404,9 @@ export async function sendGrievanceStatusEmail({
 
     const isCompleted = newStatus === 'Completed';
     const statusText = isCompleted ? 'Completed & Resolved' : 'Work In Progress';
-    const statusBadgeBg = isCompleted ? '#ecfdf5' : '#f0fdfa';
-    const statusBadgeBorder = isCompleted ? '#a7f3d0' : '#99f6e4';
-    const statusBadgeColor = isCompleted ? '#065f46' : '#0f766e';
+    const statusBadgeBg = isCompleted ? '#ecfdf5' : '#fffbeb';
+    const statusBadgeBorder = isCompleted ? '#a7f3d0' : '#fde68a';
+    const statusBadgeColor = isCompleted ? '#047857' : '#b45309';
 
     const subject = isCompleted
       ? `✅ [RESOLVED] Grievance ${hazardId}: ${hazardTitle} - Official Completion Certificate Attached`
@@ -292,153 +446,126 @@ export async function sendGrievanceStatusEmail({
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Civic Grievance Status Update</title>
+  ${EMAIL_BASE_HEAD}
+  <title>Grievance Status Update</title>
 </head>
-<body style="margin: 0; padding: 24px 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9;">
+<body style="margin: 0; padding: 32px 16px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width: 580px; margin: 0 auto;">
     <tr>
-      <td align="center">
-        <!-- Main Card Container -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin: 0 auto;">
-          
-          <!-- Government Header -->
+      <td>
+        <!-- Brand Header -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
           <tr>
-            <td style="background-color: #064e3b; padding: 24px 32px; border-bottom: 3px solid #047857;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td>
-                    <div style="font-size: 11px; font-weight: 700; color: #a7f3d0; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;">
-                      GOVERNMENT OF TAMIL NADU
-                    </div>
-                    <div style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px; line-height: 1.3;">
-                      Municipal Administration & Urban Water Supply
-                    </div>
-                    <div style="font-size: 12px; color: #d1fae5; margin-top: 4px; font-weight: 500;">
-                      MyGovt AI Hub • Public Grievance Redressal Service
-                    </div>
-                  </td>
-                </tr>
-              </table>
+            <td align="left">
+              <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #059669;">
+                Government of Tamil Nadu
+              </div>
+              <div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.4px; margin-top: 2px;">
+                MyGovt AI Hub
+              </div>
             </td>
-          </tr>
-
-          <!-- Body Content -->
-          <tr>
-            <td style="padding: 32px 32px 24px 32px;">
-              <!-- Status Badge -->
-              <div style="display: inline-block; padding: 4px 12px; background-color: ${statusBadgeBg}; border: 1px solid ${statusBadgeBorder}; border-radius: 4px; font-size: 11px; font-weight: 700; color: ${statusBadgeColor}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px;">
+            <td align="right" valign="middle">
+              <span style="display: inline-block; padding: 4px 10px; background-color: ${statusBadgeBg}; border: 1px solid ${statusBadgeBorder}; border-radius: 9999px; font-size: 11px; font-weight: 700; color: ${statusBadgeColor}; text-transform: uppercase;">
                 ${statusText}
-              </div>
-
-              <!-- Salutation -->
-              <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">
-                Dear ${citizenName || 'Citizen'},
-              </div>
-
-              <p style="font-size: 13px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">
-                ${isCompleted
-                  ? `We are pleased to inform you that municipal maintenance crews have successfully completed all necessary engineering repair works for your reported defect: <strong>${hazardTitle}</strong>.`
-                  : `Your reported infrastructure defect for <strong>${hazardTitle}</strong> has been reviewed by the municipal engineers and transitioned to <strong>IN PROGRESS</strong>. Field crews have been assigned.`
-                }
-              </p>
-
-              <!-- Official Certificate Callout (if completed) -->
-              ${isCompleted && pdfAttachment ? `
-              <div style="background-color: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 14px 18px; margin: 20px 0;">
-                <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                  <tr>
-                    <td width="28" valign="middle" style="font-size: 18px;">📄</td>
-                    <td valign="middle" style="font-size: 13px; color: #166534; font-weight: 600;">
-                      Official Quality Assurance Certificate Attached:
-                      <span style="font-weight: 400; color: #15803d; display: block; font-size: 12px; margin-top: 2px;">
-                        The official Government of Tamil Nadu Completion & Engineering Quality Docket is attached as a PDF to this email.
-                      </span>
-                    </td>
-                  </tr>
-                </table>
-              </div>
-              ` : ''}
-
-              <!-- Grievance Dossier Table -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-top: 20px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
-                ${hazardId ? `
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; width: 40%;">Grievance ID</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0284c7; font-family: monospace; font-weight: 700;">${hazardId}</td>
-                </tr>
-                ` : ''}
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Incident Title</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 600;">${hazardTitle}</td>
-                </tr>
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Location</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${locationAddress} (${ward})</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Resolution Status</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: ${statusBadgeColor}; font-weight: 700;">${statusText}</td>
-                </tr>
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Ai Prediction Budget (INR)</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #047857; font-family: monospace; font-weight: 700;">₹${estimatedCost.toLocaleString('en-IN')} <span style="font-weight: 400; color: #64748b; font-size: 11px;">(Realtime price detected by AI)</span></td>
-                </tr>
-                ${workOrderId ? `
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Official Work Order</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-family: monospace;">${workOrderId}</td>
-                </tr>
-                ` : ''}
-                ${contractorTeam ? `
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Assigned Contractor</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${contractorTeam}</td>
-                </tr>
-                ` : ''}
-                ${scheduledDispatch ? `
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Dispatch Window</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${scheduledDispatch}</td>
-                </tr>
-                ` : ''}
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; color: #64748b; font-weight: 600;">Certifying Officer</td>
-                  <td style="padding: 10px 14px; color: #0f172a;">K. S. Purushothaman (Municipal Administration)</td>
-                </tr>
-              </table>
-
-              <p style="font-size: 12px; color: #64748b; line-height: 1.5; margin-top: 24px; margin-bottom: 0;">
-                ${isCompleted
-                  ? 'Thank you for participating in civic governance and helping maintain urban infrastructure.'
-                  : 'You will receive another update along with the official completion certificate once repair works are certified by field supervisors.'
-                }
-              </p>
+              </span>
             </td>
           </tr>
-
-          <!-- Government Footer -->
-          <tr>
-            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; font-size: 11px; color: #64748b; line-height: 1.5;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td>
-                    <strong>Government of Tamil Nadu</strong> • Municipal Administration & Urban Water Supply<br />
-                    Ezhilagam Complex, Chepauk, Chennai - 600005, Tamil Nadu, India<br />
-                    Grievance Inquiries: <a href="mailto:mygovtaihub@gmail.com" style="color: #047857; text-decoration: none;">mygovtaihub@gmail.com</a>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-top: 10px; color: #94a3b8; font-size: 10px;">
-                    This is an automated municipal dispatch notification generated by MyGovt AI Hub.
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
         </table>
+
+        <!-- Main Card -->
+        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); padding: 32px;">
+          
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+            Dear ${citizenName || 'Citizen'},
+          </div>
+
+          <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 20px 0;">
+            ${isCompleted
+              ? `We are pleased to inform you that municipal engineering teams have successfully repaired and resolved your reported defect: <strong>${hazardTitle}</strong>.`
+              : `Your reported defect <strong>${hazardTitle}</strong> has been reviewed by municipal engineers and moved to <strong>IN PROGRESS</strong>. Field crews have been assigned.`
+            }
+          </p>
+
+          ${isCompleted && pdfAttachment ? `
+          <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 18px; margin-bottom: 24px;">
+            <div style="font-size: 13px; font-weight: 700; color: #166534; margin-bottom: 2px;">
+              📄 Official Completion Certificate Attached
+            </div>
+            <div style="font-size: 12px; color: #15803d;">
+              The signed Government of Tamil Nadu Completion & Engineering Docket has been attached as a PDF to this email for your records.
+            </div>
+          </div>
+          ` : ''}
+
+          <!-- Incident Dossier Details -->
+          <div style="border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 12px; border-collapse: collapse;">
+              ${hazardId ? `
+              <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500; width: 38%;">Grievance ID</td>
+                <td style="padding: 10px 14px; font-weight: 700; color: #0284c7; font-family: monospace;">${hazardId}</td>
+              </tr>
+              ` : ''}
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Incident Title</td>
+                <td style="padding: 10px 14px; font-weight: 600; color: #0f172a;">${hazardTitle}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Location</td>
+                <td style="padding: 10px 14px; color: #0f172a;">${locationAddress} (${ward})</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Resolution Status</td>
+                <td style="padding: 10px 14px; font-weight: 700; color: ${statusBadgeColor};">${statusText}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Ai Prediction Budget (INR)</td>
+                <td style="padding: 10px 14px; font-weight: 700; color: #059669; font-family: monospace;">₹${estimatedCost.toLocaleString('en-IN')} <span style="font-weight: 400; color: #64748b; font-size: 11px;">(Realtime price detected by AI)</span></td>
+              </tr>
+              ${workOrderId ? `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Work Order ID</td>
+                <td style="padding: 10px 14px; font-family: monospace; color: #0f172a;">${workOrderId}</td>
+              </tr>
+              ` : ''}
+              ${contractorTeam ? `
+              <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Assigned Crew</td>
+                <td style="padding: 10px 14px; color: #0f172a;">${contractorTeam}</td>
+              </tr>
+              ` : ''}
+              ${scheduledDispatch ? `
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Dispatch Schedule</td>
+                <td style="padding: 10px 14px; color: #0f172a;">${scheduledDispatch}</td>
+              </tr>
+              ` : ''}
+              <tr style="background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Authorized Officer</td>
+                <td style="padding: 10px 14px; color: #0f172a;">K. S. Purushothaman (Municipal Administration)</td>
+              </tr>
+            </table>
+          </div>
+
+          <p style="font-size: 13px; line-height: 1.5; color: #64748b; margin: 0;">
+            ${isCompleted
+              ? 'Thank you for your active civic participation. Together, we are keeping our roads and infrastructure safe.'
+              : 'You will receive another update when field engineering teams complete and certify the work.'
+            }
+          </p>
+
+        </div>
+
+        <!-- Footer -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px; font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.6;">
+          <tr>
+            <td>
+              Government of Tamil Nadu • Municipal Administration & Urban Water Supply<br />
+              Authorized Support: <a href="mailto:${SENDER_EMAIL}" style="color: #64748b;">${SENDER_EMAIL}</a>
+            </td>
+          </tr>
+        </table>
+
       </td>
     </tr>
   </table>
@@ -448,8 +575,13 @@ export async function sendGrievanceStatusEmail({
 
     const mailOptions: any = {
       from,
-      to: toEmail,
+      sender: SENDER_EMAIL,
       replyTo: SENDER_EMAIL,
+      envelope: {
+        from: SENDER_EMAIL,
+        to: toEmail
+      },
+      to: toEmail,
       subject,
       text: `Grievance Update: Your reported issue for "${hazardTitle}" is now ${statusText}.${isCompleted ? ' Official Completion PDF Certificate is attached.' : ''}`,
       html
@@ -470,7 +602,7 @@ export async function sendGrievanceStatusEmail({
 }
 
 /**
- * Immediate Admin Alert Email dispatched to mygovtaihub@gmail.com whenever any citizen posts a new hazard.
+ * 4. Immediate Admin Alert Email dispatched to mygovtaihub@gmail.com whenever any citizen posts a new hazard.
  */
 export async function sendNewHazardAdminAlertEmail({
   hazard
@@ -495,137 +627,109 @@ export async function sendNewHazardAdminAlertEmail({
     const isCritical = hazard.urgency === 'CRITICAL';
     const badgeBg = isCritical ? '#fef2f2' : '#fffbeb';
     const badgeBorder = isCritical ? '#fecaca' : '#fde68a';
-    const badgeColor = isCritical ? '#991b1b' : '#92400e';
+    const badgeColor = isCritical ? '#991b1b' : '#b45309';
     const estimatedCost = hazard.aiAnalysis?.estimatedCost || 12500;
 
-    const subject = `🚨 [URGENT DISPATCH] ${hazard.id}: ${hazard.title} (${hazard.location.ward})`;
+    const subject = `🚨 [NEW INCIDENT] ${hazard.id}: ${hazard.title} (${hazard.location.ward})`;
 
     const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>New Incident Reported</title>
+  ${EMAIL_BASE_HEAD}
+  <title>New Incident Alert</title>
 </head>
-<body style="margin: 0; padding: 24px 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #1e293b;">
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f1f5f9;">
+<body style="margin: 0; padding: 32px 16px; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" align="center" style="max-width: 580px; margin: 0 auto;">
     <tr>
-      <td align="center">
-        <!-- Main Card Container -->
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 580px; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin: 0 auto;">
-          
-          <!-- Government Header -->
+      <td>
+        <!-- Brand Header -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 24px;">
           <tr>
-            <td style="background-color: #064e3b; padding: 24px 32px; border-bottom: 3px solid #047857;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td>
-                    <div style="font-size: 11px; font-weight: 700; color: #a7f3d0; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px;">
-                      GOVERNMENT OF TAMIL NADU
-                    </div>
-                    <div style="font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.3px; line-height: 1.3;">
-                      Municipal Command Center • Incident Ingestion Grid
-                    </div>
-                    <div style="font-size: 12px; color: #d1fae5; margin-top: 4px; font-weight: 500;">
-                      MyGovt AI Hub • Autonomous Civil Triage Service
-                    </div>
-                  </td>
-                </tr>
-              </table>
+            <td align="left">
+              <div style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #059669;">
+                Government of Tamil Nadu
+              </div>
+              <div style="font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.4px; margin-top: 2px;">
+                MyGovt AI Hub
+              </div>
             </td>
-          </tr>
-
-          <!-- Body Content -->
-          <tr>
-            <td style="padding: 32px 32px 24px 32px;">
-              <!-- Severity Badge -->
-              <div style="display: inline-block; padding: 4px 12px; background-color: ${badgeBg}; border: 1px solid ${badgeBorder}; border-radius: 4px; font-size: 11px; font-weight: 700; color: ${badgeColor}; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px;">
+            <td align="right" valign="middle">
+              <span style="display: inline-block; padding: 4px 10px; background-color: ${badgeBg}; border: 1px solid ${badgeBorder}; border-radius: 9999px; font-size: 11px; font-weight: 700; color: ${badgeColor}; text-transform: uppercase;">
                 ${hazard.urgency} SEVERITY [${hazard.severity}/100]
-              </div>
-
-              <!-- Salutation -->
-              <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 10px;">
-                Municipal Administrator Alert
-              </div>
-
-              <p style="font-size: 13px; line-height: 1.6; color: #334155; margin: 0 0 20px 0;">
-                An infrastructure defect has just been registered via the Citizen Portal and successfully passed dual-pillar AI verification. Contractor assignment and work order dispatch are required.
-              </p>
-
-              <!-- Incident Data Table -->
-              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse: collapse; margin-top: 15px; font-size: 12px; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600; width: 40%;">Incident ID</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0284c7; font-family: monospace; font-weight: 700;">${hazard.id}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Incident Title</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 600;">${hazard.title}</td>
-                </tr>
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Category</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${hazard.type.toUpperCase().replace('_', ' ')}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Location Address</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${hazard.location.address}</td>
-                </tr>
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Municipal Ward</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 600;">${hazard.location.ward}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">GPS Coordinates</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-family: monospace;">${hazard.location.lat.toFixed(5)}° N, ${hazard.location.lng.toFixed(5)}° E</td>
-                </tr>
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Reporting Citizen</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${hazard.citizenName || 'Civilian'}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Citizen Email</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-family: monospace;">${hazard.citizenEmail || 'citizen@gmail.com'}</td>
-                </tr>
-                <tr style="background-color: #f8fafc;">
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #64748b; font-weight: 600;">Ai Prediction Budget (INR)</td>
-                  <td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; color: #047857; font-family: monospace; font-weight: 700;">₹${estimatedCost.toLocaleString('en-IN')} <span style="font-weight: 400; color: #64748b; font-size: 11px;">(Realtime price detected by AI)</span></td>
-                </tr>
-                <tr>
-                  <td style="padding: 10px 14px; color: #64748b; font-weight: 600;">Lodgement Timestamp</td>
-                  <td style="padding: 10px 14px; color: #0f172a;">${hazard.reportedAt || 'Just now'}</td>
-                </tr>
-              </table>
-
-              <!-- CTA Button -->
-              <div style="text-align: center; margin-top: 28px; margin-bottom: 10px;">
-                <a href="https://3.6.172.250.nip.io" style="background-color: #047857; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 6px; font-weight: 700; font-size: 13px; display: inline-block;">
-                  Open Command Center & Dispatch Work Order
-                </a>
-              </div>
+              </span>
             </td>
           </tr>
-
-          <!-- Government Footer -->
-          <tr>
-            <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 32px; font-size: 11px; color: #64748b; line-height: 1.5;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td>
-                    <strong>Government of Tamil Nadu</strong> • Municipal Administration & Urban Water Supply<br />
-                    Delivered to Designated Municipal Administration Authority: <a href="mailto:${ADMIN_ALERT_EMAIL}" style="color: #047857; text-decoration: none;">${ADMIN_ALERT_EMAIL}</a>
-                  </td>
-                </tr>
-                <tr>
-                  <td style="padding-top: 10px; color: #94a3b8; font-size: 10px;">
-                    This is an automated priority dispatch alert generated by MyGovt AI Hub Autonomous Grid.
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-
         </table>
+
+        <!-- Main Card -->
+        <div style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); padding: 32px;">
+          
+          <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 8px;">
+            Municipal Incident Alert
+          </div>
+
+          <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 20px 0;">
+            A new urban infrastructure defect has been lodged and verified through the AI triage engine. Contractor dispatch is requested.
+          </p>
+
+          <!-- Incident Data -->
+          <div style="border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden; margin-bottom: 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 12px; border-collapse: collapse;">
+              <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500; width: 38%;">Incident ID</td>
+                <td style="padding: 10px 14px; font-weight: 700; color: #0284c7; font-family: monospace;">${hazard.id}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Incident Title</td>
+                <td style="padding: 10px 14px; font-weight: 600; color: #0f172a;">${hazard.title}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Category</td>
+                <td style="padding: 10px 14px; color: #0f172a;">${hazard.type.toUpperCase().replace('_', ' ')}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Location & Ward</td>
+                <td style="padding: 10px 14px; color: #0f172a;">${hazard.location.address} (${hazard.location.ward})</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">GPS Coordinates</td>
+                <td style="padding: 10px 14px; font-family: monospace; color: #0f172a;">${hazard.location.lat.toFixed(5)}° N, ${hazard.location.lng.toFixed(5)}° E</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Reporting Citizen</td>
+                <td style="padding: 10px 14px; color: #0f172a;">${hazard.citizenName || 'Civilian'} (${hazard.citizenEmail || 'N/A'})</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #f1f5f9; background-color: #f8fafc;">
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Ai Prediction Budget (INR)</td>
+                <td style="padding: 10px 14px; font-weight: 700; color: #059669; font-family: monospace;">₹${estimatedCost.toLocaleString('en-IN')} <span style="font-weight: 400; color: #64748b; font-size: 11px;">(Realtime price detected by AI)</span></td>
+              </tr>
+              <tr>
+                <td style="padding: 10px 14px; color: #64748b; font-weight: 500;">Lodgement Time</td>
+                <td style="padding: 10px 14px; color: #0f172a;">${hazard.reportedAt || 'Just now'}</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- CTA Button -->
+          <div style="text-align: center;">
+            <a href="https://3.6.172.250.nip.io" style="display: inline-block; background-color: #059669; color: #ffffff; font-size: 13px; font-weight: 700; padding: 12px 28px; border-radius: 10px; box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);">
+              Open Command Center & Assign Crew →
+            </a>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 24px; font-size: 11px; color: #94a3b8; text-align: center; line-height: 1.6;">
+          <tr>
+            <td>
+              Government of Tamil Nadu • Municipal Administration Command Grid<br />
+              Delivered to Designated Municipal Authority: <a href="mailto:${ADMIN_ALERT_EMAIL}" style="color: #64748b;">${ADMIN_ALERT_EMAIL}</a>
+            </td>
+          </tr>
+        </table>
+
       </td>
     </tr>
   </table>
@@ -635,8 +739,13 @@ export async function sendNewHazardAdminAlertEmail({
 
     await transporter.sendMail({
       from,
-      to: ADMIN_ALERT_EMAIL,
+      sender: SENDER_EMAIL,
       replyTo: hazard.citizenEmail || SENDER_EMAIL,
+      envelope: {
+        from: SENDER_EMAIL,
+        to: ADMIN_ALERT_EMAIL
+      },
+      to: ADMIN_ALERT_EMAIL,
       subject,
       text: `New Hazard Lodged: [${hazard.id}] ${hazard.title} at ${hazard.location.address} (${hazard.location.ward}). Reported by ${hazard.citizenName || 'Citizen'} (${hazard.citizenEmail}). Ai Prediction Budget: ₹${estimatedCost}. Review at https://3.6.172.250.nip.io`,
       html

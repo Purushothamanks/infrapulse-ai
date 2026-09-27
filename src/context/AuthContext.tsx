@@ -8,13 +8,38 @@ interface AuthContextType {
   isLoading: boolean;
   signIn: (
     email: string,
-    role?: UserRole
-  ) => Promise<{ success: boolean; user?: User; notRegistered?: boolean; error?: string }>;
+    role?: UserRole,
+    cardNumber?: string
+  ) => Promise<{
+    success: boolean;
+    user?: User;
+    notRegistered?: boolean;
+    requiresCard?: boolean;
+    cardIssued?: boolean;
+    message?: string;
+    error?: string;
+  }>;
+  issueAdminCard: (
+    email: string
+  ) => Promise<{
+    success: boolean;
+    cardIssued?: boolean;
+    isNew?: boolean;
+    message?: string;
+    error?: string;
+  }>;
   requestOtp: (
     email: string,
     role: UserRole,
     name?: string
-  ) => Promise<{ success: boolean; emailSent?: boolean; message?: string; devCode?: string; devOfficialId?: string; error?: string }>;
+  ) => Promise<{
+    success: boolean;
+    emailSent?: boolean;
+    message?: string;
+    devCode?: string;
+    devOfficialId?: string;
+    error?: string;
+  }>;
   verifyOtpAndLogin: (
     email: string,
     code: string,
@@ -31,34 +56,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    // Restore session from localStorage for citizens, but require OTP for Admin on every visit!
+    // Restore session from localStorage
     try {
       const stored = localStorage.getItem('mygovtai_session_user') || localStorage.getItem('infrapulse_session_user');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.email) {
-          // Security policy: Admin must authenticate with a live OTP every time they visit the application
-          if (parsed.role === 'admin') {
-            localStorage.removeItem('mygovtai_session_user');
-            localStorage.removeItem('infrapulse_session_user');
-            setUser(null);
-          } else {
-            if (parsed.name) {
-              parsed.name = parsed.name.replace(/commissioner\s*/gi, '').trim();
-            }
-            setUser(parsed);
+          if (parsed.name) {
+            parsed.name = parsed.name.replace(/commissioner\s*/gi, '').trim();
           }
+          setUser(parsed);
         }
       }
     } catch (_) {}
     setIsLoading(false);
   }, []);
 
+  const issueAdminCard = async (
+    email: string
+  ): Promise<{
+    success: boolean;
+    cardIssued?: boolean;
+    isNew?: boolean;
+    message?: string;
+    error?: string;
+  }> => {
+    try {
+      const res = await fetch('/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role: 'admin', action: 'issue_card' })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || 'Failed to issue Permanent Municipal Security Card.'
+        };
+      }
+
+      return {
+        success: true,
+        cardIssued: true,
+        isNew: data.isNew,
+        message: data.message
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err?.message || 'Network error while contacting authentication server.'
+      };
+    }
+  };
+
   const requestOtp = async (
     email: string,
     role: UserRole,
     name?: string
-  ): Promise<{ success: boolean; emailSent?: boolean; message?: string; devCode?: string; devOfficialId?: string; error?: string }> => {
+  ): Promise<{
+    success: boolean;
+    emailSent?: boolean;
+    message?: string;
+    devCode?: string;
+    devOfficialId?: string;
+    error?: string;
+  }> => {
     try {
       const res = await fetch('/api/auth/send-otp', {
         method: 'POST',
@@ -91,13 +154,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (
     email: string,
-    role?: UserRole
-  ): Promise<{ success: boolean; user?: User; notRegistered?: boolean; error?: string }> => {
+    role?: UserRole,
+    cardNumber?: string
+  ): Promise<{
+    success: boolean;
+    user?: User;
+    notRegistered?: boolean;
+    requiresCard?: boolean;
+    cardIssued?: boolean;
+    message?: string;
+    error?: string;
+  }> => {
     try {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, role })
+        body: JSON.stringify({ email, role, cardNumber })
       });
 
       const data = await res.json();
@@ -105,6 +177,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           success: false,
           notRegistered: data.notRegistered,
+          requiresCard: data.requiresCard,
           error: data.error || 'Failed to sign in.'
         };
       }
@@ -118,7 +191,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('mygovtai_session_user', JSON.stringify(authenticatedUser));
       } catch (_) {}
 
-      return { success: true, user: authenticatedUser };
+      return { success: true, user: authenticatedUser, message: data.message };
     } catch (err: any) {
       return {
         success: false,
@@ -180,6 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user,
         isLoading,
         signIn,
+        issueAdminCard,
         requestOtp,
         verifyOtpAndLogin,
         logout

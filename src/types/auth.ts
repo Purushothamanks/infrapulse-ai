@@ -6,6 +6,7 @@ export interface User {
   email: string;
   role: UserRole;
   officialId?: string; // For Admin officials
+  cardNumber?: string; // Permanent municipal card number for Admin login
   verified: boolean;
   department?: string;
 }
