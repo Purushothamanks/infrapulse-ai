@@ -94,8 +94,13 @@ All emails sent and received follow the authentic **Government of Tamil Nadu Off
   - Traffic idle reduction calculates from resolved road and pavement hazards.
   - Remediation saved calculates from the total estimated budget saved through early repair.
 
-### C. Citizen 1st-Time Signup OTP Optimization (`mailer.ts` & `send-otp/route.ts`)
-- **Enhanced Deliverability:** Updated the verification email subject line to `Your Verification Passcode: {OTP} - MyGovt AI Hub (Official Memorandum No. {OM})`, avoiding spam filter suppression.
-- **Client Fallback:** Guaranteed that `devCode` is always provided in the verification API response so `AuthView` provides an immediate failsafe autofill if email inbox delivery encounters local network latency.
+### C. Citizen 1st-Time Signup OTP & Clean Production Authentication
+- **Strict Email Delivery (No Test Mode / No Auto-Fill):**
+  - Completely removed the `Auto-Generated Code (Test Mode)` banner and all UI auto-filling of the OTP code.
+  - The OTP input field now always renders clean and blank (`• • • • • •`), requiring the user to open their personal email inbox, copy the code received from `mygovtaihub@gmail.com`, and enter it manually.
+  - The API endpoint `/api/auth/send-otp` strictly delivers the OTP via Gmail SMTP and never leaks or exposes the code in the JSON response payload.
+- **Enhanced Subject Deliverability:** Updated the verification email subject line to `Your Verification Passcode: {OTP} - MyGovt AI Hub (Official Memorandum No. {OM})`, avoiding spam filter suppression.
+- **Neutral Administrative Signatory:** Updated all official correspondence signatory blocks, work order certificates, and PDF completion dockets to read **`Municipal Administration Authority`** / **`Municipal Admin`** instead of any individual's personal name.
+
 
 
