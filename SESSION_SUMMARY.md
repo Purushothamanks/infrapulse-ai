@@ -29,6 +29,11 @@
   - A permanent card number (format: `TN-MUNI-XXXX-XXXX`) is issued and saved permanently for that email.
   - An official security card email with an executive digital card graphic is dispatched to `mygovtaihub@gmail.com`.
   - That card number is permanent and used for all future logins.
+- **Login Form Security & Privacy (`AuthView.tsx`):**
+  - Removed pre-filled email state and placeholders so `mygovtaihub@gmail.com` is never pre-displayed.
+  - Removed the `Permanent Security Number` subtitle tag and the `TN-MUNI-XXXX-XXXX` text placeholder.
+  - Card number input is masked by default with password masking (`••••••••••••••••`) and equipped with an `Eye`/`EyeOff` visibility toggle button.
+
 
 ### B. Civilian Citizen Authentication
 - **Sign In:** Enter registered email (e.g. `arjun.verma@gmail.com` or citizen email) -> direct login.
