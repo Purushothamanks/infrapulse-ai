@@ -44,7 +44,6 @@ export const AuthView: React.FC = () => {
   const [otpCode, setOtpCode] = useState<string>('');
 
   // Status & Loaders
-  const [devCodeHint, setDevCodeHint] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -65,7 +64,6 @@ export const AuthView: React.FC = () => {
     setStep('input');
     setErrorMessage('');
     setSuccessMessage('');
-    setDevCodeHint(null);
     setOtpCode('');
     setCardNumber('');
     setEmail('');
@@ -76,7 +74,6 @@ export const AuthView: React.FC = () => {
     setStep('input');
     setErrorMessage('');
     setSuccessMessage('');
-    setDevCodeHint(null);
     setOtpCode('');
     setCardNumber('');
     setEmail('');
@@ -197,7 +194,6 @@ export const AuthView: React.FC = () => {
     e.preventDefault();
     setErrorMessage('');
     setSuccessMessage('');
-    setDevCodeHint(null);
 
     const cleanEmail = email.trim().toLowerCase();
 
@@ -218,11 +214,8 @@ export const AuthView: React.FC = () => {
 
       if (res.success) {
         setStep('verify');
-        setSuccessMessage(res.message || `Verification code sent to ${cleanEmail}`);
-        if (res.devCode) {
-          setDevCodeHint(res.devCode);
-          setOtpCode(res.devCode);
-        }
+        setOtpCode('');
+        setSuccessMessage(res.message || `Verification code sent to ${cleanEmail}. Please check your email inbox.`);
         setResendCooldown(30);
       } else {
         setErrorMessage(res.error || 'Failed to dispatch verification email.');
@@ -646,18 +639,16 @@ export const AuthView: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Dev / Local Testing Code */}
-                      {devCodeHint && (
-                        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs space-y-1">
-                          <div className="font-bold flex items-center gap-1.5">
-                            <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-                            <span>Auto-Generated Code (Test Mode):</span>
-                          </div>
-                          <div className="text-sm font-mono text-amber-900 dark:text-amber-100">
-                            OTP: <span className="font-bold">{devCodeHint}</span>
+                      {/* Email Dispatch Info Banner */}
+                      <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-900 dark:text-emerald-200 text-xs flex items-start gap-2.5">
+                        <Mail className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                        <div className="space-y-0.5">
+                          <div className="font-bold text-slate-900 dark:text-white">Verification Passcode Dispatched</div>
+                          <div className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                            A 6-digit verification code has been dispatched to <strong>{email}</strong> from <code>mygovtaihub@gmail.com</code>. Please inspect your inbox and enter the passcode below.
                           </div>
                         </div>
-                      )}
+                      </div>
 
                       {/* 6-Digit OTP Code Input */}
                       <div>
@@ -716,7 +707,6 @@ export const AuthView: React.FC = () => {
                             setStep('input');
                             setErrorMessage('');
                             setSuccessMessage('');
-                            setDevCodeHint(null);
                           }}
                           className="text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
                         >

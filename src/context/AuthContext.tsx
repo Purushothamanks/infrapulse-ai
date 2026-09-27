@@ -36,8 +36,6 @@ interface AuthContextType {
     success: boolean;
     emailSent?: boolean;
     message?: string;
-    devCode?: string;
-    devOfficialId?: string;
     error?: string;
   }>;
   verifyOtpAndLogin: (
@@ -118,8 +116,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     success: boolean;
     emailSent?: boolean;
     message?: string;
-    devCode?: string;
-    devOfficialId?: string;
     error?: string;
   }> => {
     try {
@@ -140,9 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: true,
         emailSent: data.emailSent,
-        message: data.message,
-        devCode: data.devCode,
-        devOfficialId: data.devOfficialId
+        message: data.message
       };
     } catch (err: any) {
       return {

@@ -181,7 +181,7 @@ export function generateCompletionReportPdf(params: CompletionReportPdfParams): 
       // Signature Box Right
       doc.rect(315, sealY + 10, 240, 75).fillAndStroke(lightBg, borderLine);
       doc.font('Helvetica-Bold').fontSize(8).fillColor(slateColor).text('AUTHORIZED SIGNATORY', 325, sealY + 18);
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(darkColor).text(params.authorizedOfficer || 'K. S. Purushothaman', 325, sealY + 32);
+      doc.font('Helvetica-Bold').fontSize(9).fillColor(darkColor).text(params.authorizedOfficer || 'Municipal Admin', 325, sealY + 32);
       doc.font('Helvetica').fontSize(8).fillColor(slateColor).text('Municipal Administration & Urban Water Supply', 325, sealY + 46);
       doc.text('Government of Tamil Nadu', 325, sealY + 58);
 

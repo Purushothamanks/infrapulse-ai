@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
     // 2. Generate and store secure OTP in memory
     const assignedGovtId = cleanRole === 'admin' ? AUTHORIZED_GOVT_ID : undefined;
-    const assignedName = name || (cleanRole === 'admin' ? 'K. S. Purushothaman' : undefined);
+    const assignedName = name || (cleanRole === 'admin' ? 'Municipal Admin' : undefined);
 
     const { code, expiresAt } = saveOtpRecord(
       cleanEmail,
@@ -61,9 +61,7 @@ export async function POST(request: Request) {
       email: cleanEmail,
       role: cleanRole,
       expiresAt,
-      message: successMessage,
-      devCode: code,
-      devOfficialId: cleanRole === 'admin' ? assignedGovtId : undefined
+      message: successMessage
     });
   } catch (error: any) {
     console.error('Error in send-otp API:', error);

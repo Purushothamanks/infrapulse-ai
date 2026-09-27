@@ -34,7 +34,7 @@ export async function POST(request: Request) {
 
       // 1A. Admin requests 1st-time Card issuance or resending card
       if (action === 'issue_card') {
-        const { cardNumber: issuedCard, isNew, user } = issueAdminCardNumber(cleanEmail, 'K. S. Purushothaman');
+        const { cardNumber: issuedCard, isNew, user } = issueAdminCardNumber(cleanEmail, 'Municipal Admin');
 
         // Dispatch official security card email
         await sendAdminSecurityCardEmail({

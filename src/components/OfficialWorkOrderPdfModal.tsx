@@ -56,7 +56,7 @@ Assigned Contractor: ${workOrder.contractorTeam}
 Contact: ${workOrder.contactNumber}
 Allocated Budget: ₹${workOrder.estimatedBudget.toLocaleString()}
 Materials: ${workOrder.requiredMaterials.join(', ')}
-Authorized Officer: K. S. Purushothaman (ID: TN-SAMPLE-2026)`;
+Authorized Officer: Municipal Admin (ID: TN-SAMPLE-2026)`;
 
   const handlePrint = () => {
     window.print();
@@ -275,7 +275,7 @@ Authorized Officer: K. S. Purushothaman (ID: TN-SAMPLE-2026)`;
 
             <div className="text-right space-y-1">
               <div className="font-mono text-xs font-bold text-slate-900 dark:text-white print:text-black">
-                K. S. Purushothaman
+                Municipal Admin
               </div>
               <div className="text-[11px] text-slate-600 dark:text-slate-400 font-medium">
                 Authorized Municipal Official

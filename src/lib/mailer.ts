@@ -201,7 +201,7 @@ function renderOfficialMemorandumHtml({
  */
 export async function sendAdminSecurityCardEmail({
   toEmail,
-  recipientName = 'K. S. Purushothaman',
+  recipientName = 'Municipal Admin',
   cardNumber,
   department = 'Tamil Nadu Municipal Administration & Urban Water Supply'
 }: {
@@ -278,7 +278,7 @@ export async function sendAdminSecurityCardEmail({
       subject,
       reference,
       bodyParagraphs,
-      signatoryName: 'K. S. Purushothaman',
+      signatoryName: 'Municipal Administration Authority',
       signatoryDesignation: 'Authorized Municipal Authority',
       signatoryDept: department,
       recipientName,
@@ -373,7 +373,7 @@ export async function sendOtpEmail({
       subject,
       reference,
       bodyParagraphs,
-      signatoryName: 'K. S. Purushothaman',
+      signatoryName: 'Municipal Administration Authority',
       signatoryDesignation: 'Executive Authentication Authority',
       signatoryDept: 'Department of Municipal Administration & Urban Water Supply',
       recipientName: recipientTitle,
@@ -471,7 +471,7 @@ export async function sendGrievanceStatusEmail({
           contractorTeam: contractorTeam || 'Tamil Nadu Rapid Infrastructure Unit',
           estimatedCost,
           completedAt: dated,
-          authorizedOfficer: 'K. S. Purushothaman'
+          authorizedOfficer: 'Municipal Admin'
         });
 
         pdfAttachment = {
@@ -528,7 +528,7 @@ export async function sendGrievanceStatusEmail({
           ` : ''}
           <tr>
             <td style="font-weight: 700; color: #475569;">Certifying Official:</td>
-            <td style="font-weight: 700; color: #0f172a;">K. S. Purushothaman (Municipal Administration)</td>
+            <td style="font-weight: 700; color: #0f172a;">Municipal Administration Authority</td>
           </tr>
         </table>
       </div>
@@ -549,7 +549,7 @@ export async function sendGrievanceStatusEmail({
       subject,
       reference,
       bodyParagraphs,
-      signatoryName: 'K. S. Purushothaman',
+      signatoryName: 'Municipal Administration Authority',
       signatoryDesignation: 'Executive Municipal Authority',
       signatoryDept: 'Department of Municipal Administration & Urban Water Supply',
       recipientName: citizenName || 'Civic Scout',
@@ -669,7 +669,7 @@ export async function sendNewHazardAdminAlertEmail({
       subject,
       reference,
       bodyParagraphs,
-      signatoryName: 'K. S. Purushothaman',
+      signatoryName: 'Municipal Administration Authority',
       signatoryDesignation: 'Executive Incident Authority',
       signatoryDept: 'Department of Municipal Administration & Urban Water Supply',
       recipientName: 'Municipal Administrator',

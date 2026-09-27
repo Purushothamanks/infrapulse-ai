@@ -8,7 +8,7 @@ const USERS_FILE = path.join(os.tmpdir(), 'mygovt_registered_users.json');
 const INITIAL_REGISTERED_USERS: Record<string, User> = {
   'mygovtaihub@gmail.com': {
     id: 'USR-ADM-001',
-    name: 'K. S. Purushothaman',
+    name: 'Municipal Admin',
     email: 'mygovtaihub@gmail.com',
     role: 'admin',
     officialId: 'TN-SAMPLE-2026',
@@ -80,7 +80,7 @@ export function getRegisteredUser(email: string): User | null {
 
 export function registerUser(user: Partial<User> & { email: string; role: UserRole }): User {
   const cleanEmail = user.email.trim().toLowerCase();
-  const cleanName = (user.name || (user.role === 'admin' ? 'K. S. Purushothaman' : 'Civilian Citizen'))
+  const cleanName = (user.name || (user.role === 'admin' ? 'Municipal Admin' : 'Civilian Citizen'))
     .replace(/commissioner\s*/gi, '')
     .trim();
 
@@ -129,7 +129,7 @@ export function issueAdminCardNumber(
   const part2 = Math.floor(1000 + Math.random() * 9000).toString();
   const permanentCardNumber = `TN-MUNI-${part1}-${part2}`;
 
-  const cleanName = (name || existingUser?.name || 'K. S. Purushothaman')
+  const cleanName = (name || existingUser?.name || 'Municipal Admin')
     .replace(/commissioner\s*/gi, '')
     .trim();
 

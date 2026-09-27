@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     if (role === 'admin') {
       user = registerUser({
         id: 'USR-ADM-001',
-        name: 'K. S. Purushothaman',
+        name: 'Municipal Admin',
         email: cleanEmail,
         role: 'admin',
         officialId: verifiedOfficialId || 'TN-SAMPLE-2026',
