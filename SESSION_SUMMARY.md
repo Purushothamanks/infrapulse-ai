@@ -62,8 +62,8 @@ All email templates have been redesigned from heavy government tables to an ultr
    - Dispatched to `mygovtaihub@gmail.com` immediately whenever a citizen logs a new hazard.
    - Includes real-time AI budget prediction, coordinates, citizen contact, and direct link to command center.
 
-### Gmail SMTP Sender Identity Note:
-- In `.env.local`, `SMTP_FROM="MyGovt AI Hub" <mygovtaihub@gmail.com>`, `SMTP_SENDER_EMAIL=mygovtaihub@gmail.com`, and `ADMIN_ALERT_EMAIL=mygovtaihub@gmail.com`.
-- **Why Gmail showed `From: MyGovt AI Hub . purushothamank.s799@gmail.com`:**
-  Gmail's SMTP servers strictly inspect the login account. If authenticated using `purushothamank.s799@gmail.com`, Google's anti-spoofing automatically stamps the sender account.
-  To make emails display strictly and solely as `mygovtaihub@gmail.com`, an App Password must be created directly inside the `mygovtaihub@gmail.com` Google account at `https://myaccount.google.com/apppasswords`.
+### Gmail SMTP Direct Authentication (Active & Verified):
+- **Authenticated Account:** `mygovtaihub@gmail.com`
+- **Google App Password:** Configured in `.env.local` locally and on the AWS EC2 instance.
+- **Verification Result:** Direct SMTP authentication on port 465 successfully tested and verified. All emails (admin security card, citizen status updates, completion PDF dockets, and new incident alerts) now originate directly from `mygovtaihub@gmail.com` with zero reference to any secondary account.
+
