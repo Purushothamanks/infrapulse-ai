@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: infrapulse-ai
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: npm run start -- -p $PORT
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: 465
+      - key: SMTP_USER
+        value: mygovtaihub@gmail.com
+      - key: SMTP_PASS
+        value: krxoucripoqlocaw
+      - key: GMAIL_USER
+        value: mygovtaihub@gmail.com
+      - key: GMAIL_APP_PASS
+        value: krxoucripoqlocaw
+      - key: SMTP_FROM
+        value: '"MyGovt AI Hub" <mygovtaihub@gmail.com>'
+      - key: SMTP_SENDER_EMAIL
+        value: mygovtaihub@gmail.com
+      - key: ADMIN_ALERT_EMAIL
+        value: mygovtaihub@gmail.com
