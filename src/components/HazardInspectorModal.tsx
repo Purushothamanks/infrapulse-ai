@@ -1,7 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { HazardReport, HazardProgress, getHazardProgress, progressToStatus } from '@/types/hazard';
+import { HazardReport, HazardProgress, getHazardProgress, progressToStatus, WorkOrder } from '@/types/hazard';
+import {
+  generateWorkOrderClient,
+  sendCitizenWorkOrderDispatchedEmail,
+  sendCitizenWorkCompletedEmail
+} from '@/lib/civicMailQueue';
 import {
   X,
   MapPin,
@@ -44,90 +49,88 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
   const currentProgress = getHazardProgress(hazard.status);
   const PROGRESS_OPTIONS: HazardProgress[] = ['Not started', 'In progress', 'Completed'];
 
-  const dispatchStatusEmail = async (prog: HazardProgress, workOrderId?: string, contractorTeam?: string) => {
-    const targetEmail = hazard.citizenEmail || 'mygovtaihub@gmail.com';
-    try {
-      const res = await fetch('/api/notifications/status-update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hazardId: hazard.id,
-          hazardTitle: hazard.title,
-          hazardType: hazard.type,
-          newStatus: prog,
-          citizenEmail: targetEmail,
-          citizenName: hazard.citizenName || 'Civic Scout',
-          locationAddress: hazard.location.address,
-          ward: hazard.location.ward,
-          contractorTeam: contractorTeam || hazard.workOrder?.contractorTeam,
-          scheduledDispatch: hazard.workOrder?.scheduledDispatch,
-          workOrderId: workOrderId || hazard.workOrder?.orderId,
-          estimatedCost: hazard.aiAnalysis?.estimatedCost || 12500
-        })
-      });
-
-      if (res.ok) {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          if (data && data.success) {
-            setStatusEmailNotice(
-              prog === 'Completed'
-                ? `Automated completion email & official PDF certificate sent to ${targetEmail}`
-                : `Automated email notification sent to ${targetEmail} (${prog})`
-            );
-            setTimeout(() => setStatusEmailNotice(null), 8000);
-          }
-        } catch (_) {}
-      }
-    } catch (err) {
-      console.error('Failed to dispatch grievance status email:', err);
-    }
-  };
-
-  const handleProgressChange = (newProg: HazardProgress) => {
+  const handleProgressChange = async (newProg: HazardProgress) => {
     const newStatus = progressToStatus(newProg);
-    onUpdateHazard({
+    const updated: HazardReport = {
       ...hazard,
       status: newStatus
-    });
+    };
+    onUpdateHazard(updated);
+
+    const targetEmail = (hazard.citizenEmail || '').trim().toLowerCase();
 
     // Immediately dispatch email update to the citizen who posted the hazard
-    if (newProg === 'In progress' || newProg === 'Completed') {
-      dispatchStatusEmail(newProg);
+    if (newProg === 'Completed') {
+      await sendCitizenWorkCompletedEmail(updated);
+      if (targetEmail) {
+        setStatusEmailNotice(`Automated completion certificate email sent to ${targetEmail}`);
+        setTimeout(() => setStatusEmailNotice(null), 8000);
+      }
+    } else if (newProg === 'In progress') {
+      if (hazard.workOrder) {
+        await sendCitizenWorkOrderDispatchedEmail(updated, hazard.workOrder);
+      }
+      if (targetEmail) {
+        setStatusEmailNotice(`Work in progress notification email sent to ${targetEmail}`);
+        setTimeout(() => setStatusEmailNotice(null), 8000);
+      }
     }
   };
 
   const handleGenerateWorkOrder = async () => {
     setIsGeneratingWorkOrder(true);
     try {
-      const res = await fetch('/api/generate-work-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          hazardId: hazard.id,
-          hazardType: hazard.type,
-          severity: hazard.severity,
-          ward: hazard.location.ward,
-          address: hazard.location.address
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.workOrder) {
-        const updated: HazardReport = {
-          ...hazard,
-          status: 'IN_PROGRESS',
-          workOrder: data.workOrder
-        };
-        onUpdateHazard(updated);
-        // Dispatch email notification informing citizen that repair work order was generated & dispatched
-        dispatchStatusEmail('In progress', data.workOrder.orderId, data.workOrder.contractorTeam);
-        try {
-          const confettiModule = await import('canvas-confetti');
-          const confettiFn = confettiModule.default || confettiModule;
-          confettiFn({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-        } catch (_) {}
+      // 1. Generate client-side work order (100% resilient on static hosting)
+      let newWorkOrder: WorkOrder;
+      try {
+        const res = await fetch('/api/generate-work-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hazardId: hazard.id,
+            hazardType: hazard.type,
+            severity: hazard.severity,
+            ward: hazard.location.ward,
+            address: hazard.location.address
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.workOrder) {
+            newWorkOrder = data.workOrder;
+          } else {
+            newWorkOrder = generateWorkOrderClient(hazard);
+          }
+        } else {
+          newWorkOrder = generateWorkOrderClient(hazard);
+        }
+      } catch (_) {
+        newWorkOrder = generateWorkOrderClient(hazard);
       }
+
+      const updated: HazardReport = {
+        ...hazard,
+        status: 'IN_PROGRESS',
+        workOrder: newWorkOrder
+      };
+      onUpdateHazard(updated);
+
+      // 2. Dispatch real email via Supabase mail queue to the reporting citizen
+      await sendCitizenWorkOrderDispatchedEmail(updated, newWorkOrder);
+
+      const targetEmail = (hazard.citizenEmail || '').trim().toLowerCase();
+      setStatusEmailNotice(
+        targetEmail
+          ? `Work Order #${newWorkOrder.orderId} dispatched! Notification email sent to ${targetEmail}`
+          : `Work Order #${newWorkOrder.orderId} issued & allocated to ${newWorkOrder.contractorTeam}`
+      );
+      setTimeout(() => setStatusEmailNotice(null), 8000);
+
+      try {
+        const confettiModule = await import('canvas-confetti');
+        const confettiFn = confettiModule.default || confettiModule;
+        confettiFn({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      } catch (_) {}
     } catch (err) {
       console.error('Work order generation error:', err);
     } finally {

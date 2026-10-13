@@ -3,6 +3,10 @@
 import React from 'react';
 import { HazardReport, HazardProgress, getHazardProgress, progressToStatus } from '@/types/hazard';
 import {
+  sendCitizenWorkOrderDispatchedEmail,
+  sendCitizenWorkCompletedEmail
+} from '@/lib/civicMailQueue';
+import {
   MapPin,
   ChevronRight,
   CheckCircle2,
@@ -32,13 +36,20 @@ export const HazardQueue: React.FC<HazardQueueProps> = ({
 }) => {
   const PROGRESS_OPTIONS: HazardProgress[] = ['Not started', 'In progress', 'Completed'];
 
-  const handleStatusChange = (hazard: HazardReport, newProgress: HazardProgress) => {
+  const handleStatusChange = async (hazard: HazardReport, newProgress: HazardProgress) => {
     if (!onUpdateHazard) return;
     const newStatus = progressToStatus(newProgress);
-    onUpdateHazard({
+    const updated: HazardReport = {
       ...hazard,
       status: newStatus
-    });
+    };
+    onUpdateHazard(updated);
+
+    if (newProgress === 'Completed') {
+      await sendCitizenWorkCompletedEmail(updated);
+    } else if (newProgress === 'In progress' && updated.workOrder) {
+      await sendCitizenWorkOrderDispatchedEmail(updated, updated.workOrder);
+    }
   };
 
   return (
