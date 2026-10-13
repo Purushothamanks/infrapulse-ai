@@ -263,15 +263,15 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[380px] sm:h-[480px] lg:h-[580px] rounded-2xl sm:rounded-3xl bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-emerald-900/40 shadow-xl overflow-hidden group transition-colors">
+    <div className="relative w-full h-[calc(100vh-270px)] min-h-[440px] sm:h-[480px] lg:h-[580px] rounded-2xl sm:rounded-3xl bg-slate-100 dark:bg-slate-950 border border-slate-300 dark:border-emerald-900/40 shadow-xl overflow-hidden group transition-colors">
       {/* Map DOM Container */}
       <div ref={mapContainerRef} className="w-full h-full z-10" />
 
       {/* Top Map HUD Bar */}
-      <div className="absolute top-3 sm:top-4 left-3 sm:left-4 right-3 sm:right-4 z-20 flex items-center justify-between pointer-events-none gap-2">
-        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto bg-white/95 dark:bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10px] sm:text-xs font-mono shadow-md truncate">
+      <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 z-20 flex items-center justify-between pointer-events-none gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto bg-white/95 dark:bg-slate-900/90 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10px] sm:text-xs font-mono shadow-md truncate">
           <Crosshair className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-emerald-600 dark:text-emerald-400 animate-spin shrink-0" />
-          <span className="text-slate-800 dark:text-slate-200 font-semibold truncate">
+          <span className="text-slate-800 dark:text-slate-200 font-bold uppercase truncate">
             {mapStyle === 'streets' ? 'ROADMAP' : 'SATELLITE'}
           </span>
           <span className="text-emerald-600 dark:text-emerald-400 font-bold hidden md:inline">
@@ -280,65 +280,111 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
         </div>
 
         {/* Map Controls Header */}
-        <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 pointer-events-auto shrink-0">
           <button
             onClick={() => setShowHeatmap(!showHeatmap)}
-            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-medium border transition-all cursor-pointer shadow-md backdrop-blur-md ${
+            className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-medium border transition-all cursor-pointer shadow-md backdrop-blur-md ${
               showHeatmap
                 ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-500/40 font-bold'
-                : 'bg-white/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                : 'bg-white/95 dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
+            title="Toggle Density Heatmap"
           >
-            <Flame className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-            <span>Heatmap</span>
+            <Flame className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Heatmap</span>
           </button>
 
           <button
             onClick={toggleMapStyle}
-            className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-medium border transition-all cursor-pointer shadow-md backdrop-blur-md ${
+            className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-medium border transition-all cursor-pointer shadow-md backdrop-blur-md ${
               mapStyle === 'satellite'
                 ? 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-800 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/40 font-bold'
-                : 'bg-white/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
+                : 'bg-white/95 dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
             }`}
+            title="Switch Map Tiles (Streets / Satellite)"
           >
-            <Layers className="w-3 sm:w-3.5 h-3 sm:h-3.5" />
-            <span>{mapStyle === 'streets' ? 'Satellite' : 'Roadmap'}</span>
+            <Layers className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{mapStyle === 'streets' ? 'Satellite' : 'Roadmap'}</span>
           </button>
 
           <button
             onClick={handleResetView}
-            className="p-1.5 sm:p-2 rounded-xl bg-white/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white shadow-md backdrop-blur-md cursor-pointer"
-            title="Reset City View"
+            className="p-1.5 sm:p-2 rounded-xl bg-white/95 dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:text-slate-900 dark:hover:text-white shadow-md backdrop-blur-md cursor-pointer"
+            title="Reset to City Center"
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
 
           <button
             onClick={handleLocateMe}
-            className="p-1.5 sm:p-2 rounded-xl bg-white/90 dark:bg-slate-900/80 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 hover:text-emerald-700 dark:hover:text-emerald-300 shadow-md backdrop-blur-md cursor-pointer"
-            title="Locate My GPS"
+            className="p-1.5 sm:p-2 rounded-xl bg-white/95 dark:bg-slate-900/90 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-800 hover:text-emerald-700 dark:hover:text-emerald-300 shadow-md backdrop-blur-md cursor-pointer"
+            title="Pan to My Current GPS"
           >
             <Navigation className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
+      {/* Floating Selected Hazard Card Overlay (Mobile & Tablet Ergonomics) */}
+      {selectedHazard && (
+        <div className="absolute bottom-11 sm:bottom-14 left-2.5 right-2.5 sm:left-4 sm:right-auto sm:max-w-sm z-30 pointer-events-auto bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-3 rounded-2xl border border-slate-300 dark:border-slate-700 shadow-2xl animate-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-start gap-2.5">
+            <img
+              src={selectedHazard.imageUrl}
+              alt={selectedHazard.title}
+              className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shrink-0"
+            />
+            <div className="min-w-0 flex-1 space-y-0.5">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded ${
+                    selectedHazard.urgency === 'CRITICAL'
+                      ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-400'
+                  }`}
+                >
+                  {selectedHazard.urgency} [{selectedHazard.severity}]
+                </span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                  {selectedHazard.location.ward}
+                </span>
+              </div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                {selectedHazard.title}
+              </h4>
+              <p className="text-[10px] text-slate-600 dark:text-slate-400 truncate">
+                {selectedHazard.location.address}
+              </p>
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-center gap-2">
+            <button
+              onClick={() => onSelectHazard(selectedHazard)}
+              className="flex-1 py-1.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <span>Inspect &amp; Dispatch</span>
+              <ExternalLink className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Map Legend */}
-      <div className="absolute bottom-3 left-3 sm:left-4 right-14 sm:right-16 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
-        <div className="flex items-center gap-2 sm:gap-3 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md px-2.5 sm:px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 text-[10px] sm:text-[11px] font-mono text-slate-800 dark:text-slate-300 shadow-md pointer-events-auto">
-          <div className="flex items-center gap-1 sm:gap-1.5">
+      <div className="absolute bottom-2.5 left-2.5 sm:left-4 right-14 sm:right-16 z-20 flex flex-wrap items-center justify-between gap-1.5 pointer-events-none">
+        <div className="flex items-center gap-2 sm:gap-3 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md px-2.5 sm:px-3 py-1 rounded-xl border border-slate-200 dark:border-slate-800 text-[9px] sm:text-[11px] font-mono text-slate-800 dark:text-slate-300 shadow-md pointer-events-auto">
+          <div className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
             <span>Critical</span>
           </div>
-          <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
             <span>Water</span>
           </div>
-          <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-amber-500"></span>
             <span>Structural</span>
           </div>
-          <div className="flex items-center gap-1 sm:gap-1.5">
+          <div className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
             <span>Waste</span>
           </div>

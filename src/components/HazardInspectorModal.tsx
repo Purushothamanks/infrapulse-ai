@@ -225,12 +225,12 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
               </div>
             )}
 
-            {/* ADMIN PROGRESS CONTROLLER */}
-            <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center gap-2">
+            {/* ADMIN PROGRESS CONTROLLER (Mobile Responsive Grid) */}
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Stage:
+                Resolution Stage:
               </span>
-              <div className="flex items-center gap-1">
+              <div className="grid grid-cols-3 sm:flex items-center gap-1.5">
                 {PROGRESS_OPTIONS.map((opt) => {
                   const isCurrent = currentProgress === opt;
                   return (
@@ -238,7 +238,7 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
                       key={opt}
                       type="button"
                       onClick={() => handleProgressChange(opt)}
-                      className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      className={`py-2 sm:py-1 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer text-center active:scale-95 ${
                         isCurrent
                           ? opt === 'Completed'
                             ? 'bg-emerald-500 text-slate-950 shadow-xs'
@@ -383,13 +383,13 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
                 </div>
 
                 {/* Official Work Order Action Buttons */}
-                <div className="flex items-center gap-2 pt-2 border-t border-cyan-200/60 dark:border-slate-800">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-cyan-200/60 dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => setIsPdfModalOpen(true)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-emerald-500 dark:hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-sm"
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-emerald-500 dark:hover:bg-emerald-400 text-white dark:text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-sm active:scale-95"
                   >
-                    <Printer className="w-4 h-4" />
+                    <Printer className="w-4 h-4 shrink-0" />
                     <span>View / Print Official Docket (PDF)</span>
                   </button>
                   <button
@@ -399,10 +399,10 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
                       const text = `🏛️ OFFICIAL MUNICIPAL WORK ORDER: ${hazard.workOrder!.orderId} for ${hazard.title} at ${hazard.location.address}. Allocated budget: ₹${hazard.workOrder!.estimatedBudget}. Please dispatch crew immediately.`;
                       window.open(`https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(text)}`, '_blank');
                     }}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-sm"
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-3.5 rounded-xl bg-green-600 hover:bg-green-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-sm active:scale-95"
                   >
-                    <MessageSquare className="w-4 h-4" />
-                    <span className="hidden sm:inline">WhatsApp Dispatch</span>
+                    <MessageSquare className="w-4 h-4 shrink-0" />
+                    <span>WhatsApp Dispatch</span>
                   </button>
                 </div>
               </div>

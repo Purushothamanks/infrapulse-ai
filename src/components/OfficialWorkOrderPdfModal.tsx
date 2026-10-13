@@ -78,22 +78,22 @@ Authorized Officer: Municipal Admin (ID: TN-SAMPLE-2026)`;
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-in fade-in">
       <div className="relative w-full max-w-3xl my-auto rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-colors flex flex-col max-h-[94vh]">
         {/* Modal Toolbar (Hidden during print) */}
-        <div className="print:hidden flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
-          <div className="flex items-center gap-2">
-            <FileCheck2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-bold text-sm text-slate-900 dark:text-white">
-              Official Work Order Docket • {workOrder.orderId}
+        <div className="print:hidden flex items-center justify-between px-3 sm:px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <FileCheck2 className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+              <span className="hidden sm:inline">Official Work Order Docket • </span>{workOrder.orderId}
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-sm"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-sm"
               title="Print or Save as PDF"
             >
               <Printer className="w-4 h-4" />
-              <span>Print / PDF</span>
+              <span><span className="hidden sm:inline">Print / </span>PDF</span>
             </button>
 
             <button
@@ -124,7 +124,7 @@ Authorized Officer: Municipal Admin (ID: TN-SAMPLE-2026)`;
         </div>
 
         {/* Printable Official Government Docket Content */}
-        <div ref={printableRef} className="p-6 sm:p-8 overflow-y-auto space-y-6 text-slate-900 dark:text-slate-100 print:text-black print:bg-white print:p-4 font-sans">
+        <div ref={printableRef} className="p-4 sm:p-8 overflow-y-auto space-y-4 sm:space-y-6 text-slate-900 dark:text-slate-100 print:text-black print:bg-white print:p-4 font-sans">
           {/* Government Official Header */}
           <div className="border-b-2 border-slate-900 dark:border-slate-300 pb-5 text-center space-y-1 relative">
             <div className="flex items-center justify-center gap-2 mb-1">
