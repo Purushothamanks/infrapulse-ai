@@ -32,7 +32,10 @@ import {
   Filter,
   Eye,
   ExternalLink,
-  Maximize2
+  Maximize2,
+  RotateCcw,
+  Check,
+  RefreshCw
 } from 'lucide-react';
 
 interface CitizenPortalProps {
@@ -361,12 +364,15 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
   const [ward, setWard] = useState<string>('Ward 4 - East Tech Corridor');
   const [coords, setCoords] = useState<{ lat: number; lng: number }>({ lat: 12.9716, lng: 77.5946 });
 
-  // Instant Real vs Fake Image Verification State
+  // Instant Real vs Fake Image Verification State & Quick Trail
   const [isVerifyingImage, setIsVerifyingImage] = useState<boolean>(false);
   const [imageVerification, setImageVerification] = useState<VerificationTelemetry | null>(null);
+  const [isQuickTrailOpen, setIsQuickTrailOpen] = useState<boolean>(false);
 
-  // Live Camera State
+  // Full-Screen Live Camera State
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
+  const [capturedSnapshot, setCapturedSnapshot] = useState<string | null>(null);
+  const [cameraFacingMode, setCameraFacingMode] = useState<'environment' | 'user'>('environment');
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
@@ -667,17 +673,22 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     }
   };
 
-  // Live Web Camera Controls
-  const handleStartCamera = async () => {
+  // Live Full-Screen Web Camera Controls
+  const handleStartCamera = async (facing: 'environment' | 'user' = cameraFacingMode) => {
     setIsCameraActive(true);
+    setCapturedSnapshot(null);
     try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        video: { facingMode: facing, width: { ideal: 1920 }, height: { ideal: 1080 } }
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        videoRef.current.play().catch(console.warn);
       }
     } catch (err) {
       console.warn('WebRTC camera unavailable or blocked, triggering device native camera:', err);
@@ -688,12 +699,25 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     }
   };
 
-  const handleCaptureFrame = async () => {
+  useEffect(() => {
+    if (isCameraActive && streamRef.current && videoRef.current && !capturedSnapshot) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(console.warn);
+    }
+  }, [isCameraActive, capturedSnapshot]);
+
+  const handleFlipCamera = async () => {
+    const nextMode = cameraFacingMode === 'environment' ? 'user' : 'environment';
+    setCameraFacingMode(nextMode);
+    await handleStartCamera(nextMode);
+  };
+
+  const handleCaptureSnapshot = () => {
     if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
-    const vw = videoRef.current.videoWidth || 640;
-    const vh = videoRef.current.videoHeight || 480;
-    const maxDim = 960;
+    const vw = videoRef.current.videoWidth || 1280;
+    const vh = videoRef.current.videoHeight || 720;
+    const maxDim = 1280;
     let w = vw;
     let h = vh;
     if (w > maxDim || h > maxDim) {
@@ -710,15 +734,25 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
     const ctx = canvas.getContext('2d');
     if (ctx) {
       ctx.drawImage(videoRef.current, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.72);
-      const { visualMetrics } = await compressImageAndAnalyze(dataUrl, 'live_camera_capture.jpg');
-      setSelectedImage(dataUrl);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      setCapturedSnapshot(dataUrl);
+    }
+  };
+
+  const handleAttachSnapshot = async () => {
+    if (!capturedSnapshot) return;
+    try {
+      const { visualMetrics } = await compressImageAndAnalyze(capturedSnapshot, 'live_camera_capture.jpg');
+      setSelectedImage(capturedSnapshot);
       setUploadedFileName('live_camera_capture.jpg');
       setCurrentVisualMetrics(visualMetrics || null);
       setSelectedSampleId('custom-upload');
-      runInstantVerification(dataUrl, 'custom-upload', visualMetrics || null, 'live_camera_capture.jpg');
+      runInstantVerification(capturedSnapshot, 'custom-upload', visualMetrics || null, 'live_camera_capture.jpg');
+    } catch (err) {
+      console.error('Error attaching captured photo:', err);
+    } finally {
+      handleStopCamera();
     }
-    handleStopCamera();
   };
 
   const handleStopCamera = () => {
@@ -727,6 +761,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
       streamRef.current = null;
     }
     setIsCameraActive(false);
+    setCapturedSnapshot(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -916,9 +951,22 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
               alt="MyGovt AI Hub Logo"
               className="h-9 sm:h-10 w-auto object-contain rounded-xl shadow-xs"
             />
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 uppercase">
-              MY GOVT AI HUB
-            </span>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 uppercase">
+                MY GOVT AI HUB
+              </span>
+
+              {/* Quick Trail Option for Real vs Fake Learning */}
+              <button
+                type="button"
+                onClick={() => setIsQuickTrailOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-cyan-500/15 hover:from-emerald-500/25 hover:to-cyan-500/25 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 transition-all cursor-pointer shadow-xs active:scale-95 whitespace-nowrap"
+                title="Quick Trail: Learn Real vs Fake Image Detection & Test Presets"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Quick Trail</span>
+              </button>
+            </div>
           </div>
 
           {/* Header Action Buttons: Light/Dark Mode + Profile + Logout */}
@@ -971,7 +1019,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
             <div className="flex items-center justify-between max-w-3xl mx-auto">
               <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Camera className="w-5 h-5 text-emerald-500" />
-                <span>Lodge Public Infrastructure Grievance</span>
+                <span>Raise Public Infrastructure Risk</span>
               </h2>
               <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-full border border-emerald-300 dark:border-emerald-500/30 font-semibold">
                 AI COMPUTER VISION TRIAGE
@@ -983,9 +1031,9 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                 <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-500/20 border border-emerald-300 dark:border-emerald-500/50 text-emerald-800 dark:text-emerald-300 text-sm flex items-center gap-3 animate-in fade-in">
                   <CheckCircle2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div>
-                    <span className="font-bold block">Grievance Successfully Lodged!</span>
+                    <span className="font-bold block">Risk Successfully Raised!</span>
                     <span className="text-xs text-emerald-700 dark:text-emerald-400">
-                      AI verification complete. Your report has been dispatched to the Municipal Admin Command Center.
+                      AI verification complete. Your risk alert has been dispatched to the Municipal Admin Command Center.
                     </span>
                   </div>
                 </div>
@@ -1039,7 +1087,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                     {/* CAMERA OPTION: Quick Photo Capture */}
                     <button
                       type="button"
-                      onClick={handleStartCamera}
+                      onClick={() => handleStartCamera()}
                       className="flex items-center gap-3 p-3.5 rounded-2xl border-2 border-emerald-500/50 bg-emerald-50/60 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-all cursor-pointer group shadow-xs text-left"
                     >
                       <div className="p-2.5 rounded-xl bg-emerald-500 text-slate-950 shadow-md group-hover:scale-105 transition-transform">
@@ -1135,53 +1183,6 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                       </button>
                     </div>
                   </div>
-
-                  {/* LIVE CAMERA VIEWFINDER MODAL / INLINE VIEW */}
-                  {isCameraActive && (
-                    <div className="p-4 rounded-3xl bg-slate-950 border-2 border-emerald-500 text-white space-y-3 mb-4 animate-in zoom-in-95 duration-200 shadow-2xl">
-                      <div className="flex items-center justify-between text-xs font-mono">
-                        <span className="flex items-center gap-2 text-emerald-400 font-bold">
-                          <Video className="w-4 h-4 animate-pulse" />
-                          LIVE CAMERA STREAM ACTIVE
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleStopCamera}
-                          className="p-1 rounded-lg text-slate-400 hover:text-white"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <div className="relative rounded-2xl overflow-hidden aspect-video bg-black flex items-center justify-center">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between gap-3">
-                        <button
-                          type="button"
-                          onClick={handleStopCamera}
-                          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCaptureFrame}
-                          className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-lg shadow-emerald-500/30"
-                        >
-                          <Camera className="w-4 h-4" />
-                          <span>Capture Photo Now</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Selected Image Preview & Real-Time Verification Scanner */}
                   <div className="space-y-3">
@@ -1411,7 +1412,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5 text-slate-950" />
-                      <span>Submit Grievance to Municipal Portal (Verified Real Photo)</span>
+                      <span>Submit Risk to Municipal Portal (Verified Real Photo)</span>
                     </>
                   )}
                 </button>
@@ -1462,7 +1463,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                 <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No reports filed yet</h4>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
                   You haven&apos;t registered any municipal infrastructure defects under this account.
-                  Found a pothole or water leak? Lodge a report now.
+                  Found a pothole or water leak? Raise a risk report now.
                 </p>
                 <button
                   type="button"
@@ -1829,7 +1830,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
       {/* CITIZEN PORTAL FIXED BOTTOM NAVIGATION DOCK (Desktop & Mobile) */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800/80 px-2 sm:px-6 pt-1.5 pb-2.5 sm:py-2.5 transition-colors shadow-2xl">
         <div className="max-w-md sm:max-w-2xl mx-auto grid grid-cols-4 items-center gap-1 sm:gap-2">
-          {/* 1. Lodge Grievance */}
+          {/* 1. Raise Risk */}
           <button
             type="button"
             onClick={() => setActiveTab('raise')}
@@ -1841,8 +1842,8 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
           >
             <Camera className="w-5 h-5 shrink-0" />
             <span className="text-[10px] sm:text-xs font-semibold tracking-wide">
-              <span className="sm:hidden">Lodge</span>
-              <span className="hidden sm:inline">Lodge Grievance</span>
+              <span className="sm:hidden">Raise Risk</span>
+              <span className="hidden sm:inline">Raise Risk</span>
             </span>
           </button>
 
@@ -2189,7 +2190,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 text-xs font-semibold cursor-pointer"
                 >
                   <Trash2 className="w-4 h-4" />
-                  <span>Withdraw / Delete Grievance</span>
+                  <span>Withdraw / Delete Risk Report</span>
                 </button>
               ) : (
                 <button
@@ -2222,7 +2223,7 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
               <Trash2 className="w-6 h-6" />
             </div>
             <div>
-              <h4 className="text-base font-bold text-slate-900 dark:text-white">Delete Grievance?</h4>
+              <h4 className="text-base font-bold text-slate-900 dark:text-white">Delete Risk Report?</h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                 Are you sure you want to withdraw and delete complaint ID{' '}
                 <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{deletingId}</span>? It will be removed from the municipal triage system.
@@ -2242,6 +2243,367 @@ export const CitizenPortal: React.FC<CitizenPortalProps> = ({
                 className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 transition-colors"
               >
                 Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULL-SCREEN LIVE CAMERA VIEWFINDER & CAPTURE MODAL */}
+      {isCameraActive && (
+        <div className="fixed inset-0 z-50 bg-black text-white flex flex-col justify-between overflow-hidden animate-in fade-in duration-200">
+          {/* Top HUD Controls */}
+          <div className="relative z-10 flex items-center justify-between px-4 sm:px-6 py-4 bg-gradient-to-b from-black/85 via-black/50 to-transparent">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/40">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                LIVE OPTICAL FEED
+              </span>
+              <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
+                {cameraFacingMode === 'environment' ? 'REAR WIDE SENSOR' : 'FRONT SENSOR'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Flip Camera Button */}
+              <button
+                type="button"
+                onClick={handleFlipCamera}
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white backdrop-blur-md cursor-pointer border border-white/20"
+                title="Switch Camera Lens"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
+
+              {/* Close Button */}
+              <button
+                type="button"
+                onClick={handleStopCamera}
+                className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white backdrop-blur-md cursor-pointer border border-white/20"
+                title="Exit Full-Screen Camera"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Viewfinder Main View */}
+          <div className="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-black">
+            {capturedSnapshot ? (
+              /* Review Captured Snapshot */
+              <div className="relative w-full h-full flex items-center justify-center">
+                <img
+                  src={capturedSnapshot}
+                  alt="Captured Hazard Snapshot"
+                  className="w-full h-full object-contain sm:object-cover"
+                />
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-emerald-500/90 text-slate-950 font-bold text-xs shadow-lg backdrop-blur-md flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Snapshot Captured • Review & Attach Below</span>
+                </div>
+              </div>
+            ) : (
+              /* Live Video Stream with Tactical Crosshairs Reticle */
+              <div className="relative w-full h-full flex items-center justify-center">
+                <video
+                  ref={(el) => {
+                    videoRef.current = el;
+                    if (el && streamRef.current && el.srcObject !== streamRef.current) {
+                      el.srcObject = streamRef.current;
+                      el.play().catch(console.warn);
+                    }
+                  }}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Viewfinder Reticle Framing */}
+                <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-6">
+                  <div className="relative w-64 h-64 sm:w-80 sm:h-80 border-2 border-dashed border-emerald-400/60 rounded-3xl flex items-center justify-center">
+                    {/* Corner Crosshair Accents */}
+                    <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-emerald-400 rounded-tl-xl" />
+                    <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-emerald-400 rounded-tr-xl" />
+                    <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-xl" />
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-xl" />
+
+                    {/* Reticle Center Marker */}
+                    <div className="w-4 h-4 rounded-full border border-emerald-400/80 flex items-center justify-center">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    </div>
+                  </div>
+
+                  <p className="mt-4 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md text-[11px] sm:text-xs text-emerald-300 font-mono tracking-wide border border-emerald-500/30">
+                    ALIGN ROAD DEFECT / HAZARD IN THE RETICLE
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom HUD Controls */}
+          <div className="relative z-10 px-6 py-6 pb-8 sm:pb-10 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex items-center justify-center">
+            {capturedSnapshot ? (
+              /* Review Actions: Retake OR Attach Photo */
+              <div className="flex items-center justify-center gap-4 w-full max-w-sm">
+                <button
+                  type="button"
+                  onClick={() => setCapturedSnapshot(null)}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs sm:text-sm backdrop-blur-md border border-white/20 transition-all active:scale-95 cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Retake Photo</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleAttachSnapshot}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-extrabold text-xs sm:text-sm shadow-xl shadow-emerald-500/40 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Check className="w-4 h-4 text-slate-950" />
+                  <span>Attach Photo</span>
+                </button>
+              </div>
+            ) : (
+              /* Active Shutter Trigger */
+              <div className="flex items-center justify-between w-full max-w-xs">
+                <button
+                  type="button"
+                  onClick={handleStopCamera}
+                  className="p-3 rounded-2xl text-slate-400 hover:text-white text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+
+                {/* Circular Shutter Button */}
+                <button
+                  type="button"
+                  onClick={handleCaptureSnapshot}
+                  className="w-18 h-18 sm:w-20 sm:h-20 rounded-full border-4 border-white/80 p-1 flex items-center justify-center transition-transform active:scale-90 cursor-pointer shadow-2xl"
+                  title="Capture Photo"
+                >
+                  <div className="w-full h-full rounded-full bg-white hover:bg-emerald-400 transition-colors shadow-inner" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleFlipCamera}
+                  className="p-3 rounded-2xl text-slate-400 hover:text-white"
+                  title="Flip Camera Lens"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* QUICK TRAIL: AI REAL VS FAKE DETECTION LEARNING & TEST PRESETS MODAL */}
+      {isQuickTrailOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+          <div className="relative w-full max-w-2xl max-h-[92vh] flex flex-col rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-colors">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-cyan-500/10 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Quick Trail: Real vs Fake Image Detection</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Understand how Tamil Nadu Civic AI validates genuine defects and blocks synthetic fakes.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuickTrailOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Body */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              {/* Educational Overview: 3 Pillar Principles */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1.5">
+                  <div className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>1. Bayer Pattern</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Real cameras record physical photon shot noise and Bayer sensor patterns. AI generators leave unnatural pixel smoothing.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1.5">
+                  <div className="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>2. Civil Domain Audit</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                    AI inspects asphalt, concrete cracks, and crater depth. Pets, memes, selfies, and indoor rooms are promptly classified as non-civil.
+                  </p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-1.5">
+                  <div className="text-xs font-mono font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 shrink-0" />
+                    <span>3. Instant Gatekeeper</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                    Verification runs immediately upon capture or upload—protecting municipal teams from bogus claims while expediting authentic repairs.
+                  </p>
+                </div>
+              </div>
+
+              {/* Interactive Test Presets Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-500" />
+                    <span>Try Interactive Detection Presets</span>
+                  </h4>
+                  <span className="text-[11px] text-slate-500">Click any preset to test the AI scanner</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Preset 1: Real Pothole */}
+                  <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-500/30 space-y-3 flex flex-col justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          Real Road Pothole
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 dark:bg-emerald-500/20 text-emerald-800 dark:text-emerald-300">
+                          APPROVED
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                        Genuine physical asphalt fracture captured with real smartphone sensor. Verified 98.4% authentic.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('raise');
+                        handleSelectDemoPreset('test-real-pothole');
+                        setIsQuickTrailOpen(false);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs transition-colors cursor-pointer shadow-xs"
+                    >
+                      Test Real Pothole Preset
+                    </button>
+                  </div>
+
+                  {/* Preset 2: AI Generated Fake */}
+                  <div className="p-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-300 dark:border-red-500/30 space-y-3 flex flex-col justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 text-red-500" />
+                          Synthetic AI Fake (Midjourney)
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-red-100 dark:bg-red-500/20 text-red-800 dark:text-red-300">
+                          REJECTED
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                        Generated by AI with synthetic artifacts and lack of physical camera sensor noise.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('raise');
+                        handleSelectDemoPreset('test-ai-fake-pothole');
+                        setIsQuickTrailOpen(false);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs"
+                    >
+                      Test AI Fake Preset
+                    </button>
+                  </div>
+
+                  {/* Preset 3: Domestic Animal / Pet */}
+                  <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-500/30 space-y-3 flex flex-col justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
+                          Domestic Animal / Pet
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300">
+                          REJECTED
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                        Non-civil photograph. AI detects organic fur/pet subject instead of road infrastructure defect.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('raise');
+                        handleSelectDemoPreset('test-animal-dog');
+                        setIsQuickTrailOpen(false);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs"
+                    >
+                      Test Animal / Pet Preset
+                    </button>
+                  </div>
+
+                  {/* Preset 4: Indoor Room */}
+                  <div className="p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-500/30 space-y-3 flex flex-col justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
+                          Indoor Living Room / Furniture
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300">
+                          REJECTED
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">
+                        Indoor interior scene. Lacks public asphalt, drainage, concrete, or municipal infrastructure elements.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('raise');
+                        handleSelectDemoPreset('test-indoor-room');
+                        setIsQuickTrailOpen(false);
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-xs"
+                    >
+                      Test Indoor Room Preset
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/60 flex items-center justify-between shrink-0">
+              <span className="text-xs text-slate-500 dark:text-slate-400">
+                TN Civic Vision Engine • Autonomous Verification
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsQuickTrailOpen(false)}
+                className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              >
+                Close & Return
               </button>
             </div>
           </div>
