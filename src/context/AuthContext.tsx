@@ -87,15 +87,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          return {
-            success: true,
-            cardIssued: true,
-            isNew: data.isNew,
-            message: data.message
-          };
-        }
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && data.success) {
+            return {
+              success: true,
+              cardIssued: true,
+              isNew: data.isNew,
+              message: data.message
+            };
+          }
+        } catch (_) {}
       }
     } catch (_) {}
 
@@ -130,14 +133,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          return {
-            success: true,
-            emailSent: data.emailSent,
-            message: data.message
-          };
-        }
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && data.success) {
+            return {
+              success: true,
+              emailSent: data.emailSent,
+              message: data.message
+            };
+          }
+        } catch (_) {}
       }
     } catch (_) {}
 
@@ -174,25 +180,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.user) {
-          const authenticatedUser = data.user as User;
-          if (authenticatedUser.name) {
-            authenticatedUser.name = authenticatedUser.name.replace(/commissioner\s*/gi, '').trim();
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && data.success && data.user) {
+            const authenticatedUser = data.user as User;
+            if (authenticatedUser.name) {
+              authenticatedUser.name = authenticatedUser.name.replace(/commissioner\s*/gi, '').trim();
+            }
+            setUser(authenticatedUser);
+            try {
+              localStorage.setItem('mygovtai_session_user', JSON.stringify(authenticatedUser));
+            } catch (_) {}
+            return { success: true, user: authenticatedUser, message: data.message };
+          } else if (data && (data.requiresCard || data.notRegistered)) {
+            return {
+              success: false,
+              notRegistered: data.notRegistered,
+              requiresCard: data.requiresCard,
+              error: data.error
+            };
           }
-          setUser(authenticatedUser);
-          try {
-            localStorage.setItem('mygovtai_session_user', JSON.stringify(authenticatedUser));
-          } catch (_) {}
-          return { success: true, user: authenticatedUser, message: data.message };
-        } else if (data.requiresCard || data.notRegistered) {
-          return {
-            success: false,
-            notRegistered: data.notRegistered,
-            requiresCard: data.requiresCard,
-            error: data.error
-          };
-        }
+        } catch (_) {}
       }
     } catch (_) {}
 
@@ -244,18 +253,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.user) {
-          const authenticatedUser = data.user as User;
-          if (authenticatedUser.name) {
-            authenticatedUser.name = authenticatedUser.name.replace(/commissioner\s*/gi, '').trim();
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && data.success && data.user) {
+            const authenticatedUser = data.user as User;
+            if (authenticatedUser.name) {
+              authenticatedUser.name = authenticatedUser.name.replace(/commissioner\s*/gi, '').trim();
+            }
+            setUser(authenticatedUser);
+            try {
+              localStorage.setItem('mygovtai_session_user', JSON.stringify(authenticatedUser));
+            } catch (_) {}
+            return { success: true, user: authenticatedUser };
           }
-          setUser(authenticatedUser);
-          try {
-            localStorage.setItem('mygovtai_session_user', JSON.stringify(authenticatedUser));
-          } catch (_) {}
-          return { success: true, user: authenticatedUser };
-        }
+        } catch (_) {}
       }
     } catch (_) {}
 

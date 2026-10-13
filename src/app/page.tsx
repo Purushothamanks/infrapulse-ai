@@ -13,11 +13,51 @@ import { MobileQrModal } from '@/components/MobileQrModal';
 import { FullPageImpactView } from '@/components/FullPageImpactView';
 import { AuthView } from '@/components/AuthView';
 import { CitizenPortal } from '@/components/CitizenPortal';
+import { supabase } from '@/lib/supabase';
 import {
   Radio,
   Loader2,
   Filter
 } from 'lucide-react';
+
+function mapSupabaseRowToHazard(row: any): HazardReport {
+  return {
+    id: row.id,
+    title: row.title,
+    type: row.type,
+    severity: Number(row.severity) || 50,
+    urgency: row.urgency || 'HIGH',
+    status: row.status || 'NOT_STARTED',
+    location: row.location || {
+      lat: 12.9716,
+      lng: 77.5946,
+      x: 500,
+      y: 500,
+      address: 'Reported Location',
+      ward: 'Ward 1'
+    },
+    imageUrl: row.image_url || '/sample-hazards/1_severe_pothole_crater.png',
+    reportedAt: row.reported_at || 'Just now',
+    citizenName: row.citizen_name || 'Civilian Citizen',
+    citizenEmail: row.citizen_email || 'citizen@gmail.com',
+    upvotes: Number(row.upvotes) || 1,
+    aiAnalysis: row.ai_analysis || {
+      confidence: 95,
+      hazardType: row.type,
+      hazardLabel: row.title,
+      detectedFeatures: ['Civil infrastructure defect'],
+      dimensionsEstimated: 'Standard defect',
+      severityScore: row.severity,
+      urgencyLevel: row.urgency,
+      sustainabilityImpact: 'Mitigation required.',
+      suggestedAction: 'Deploy repair team.',
+      carbonPenaltyKgPerDay: 25,
+      estimatedCost: 25000,
+      isDuplicate: false
+    },
+    workOrder: row.work_order || undefined
+  };
+}
 
 function playChimeAlert() {
   try {
@@ -72,10 +112,60 @@ export default function Home() {
     }
   }, []);
 
-  // Universal Real-Time Cross-Device Incident Sync with /api/hazards
+  // Universal Real-Time Cross-Device Incident Sync with Supabase WebSockets (<100ms) + Resilient API Polling
   useEffect(() => {
     let isMounted = true;
 
+    // A. Query Supabase Cloud Database on Mount
+    supabase
+      .from('hazards')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && Array.isArray(data) && data.length > 0 && isMounted) {
+          const mapped = data.map(mapSupabaseRowToHazard);
+          setHazards(mapped);
+          try {
+            localStorage.setItem('infrapulse_hazards_store', JSON.stringify(mapped));
+          } catch (_) {}
+        }
+      });
+
+    // B. Real-Time WebSockets: Instant updates across all devices
+    const channel = supabase
+      .channel('realtime-hazards-live')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'hazards' },
+        (payload) => {
+          if (!isMounted) return;
+          console.log('[SUPABASE REALTIME EVENT]', payload.eventType, payload);
+
+          if (payload.eventType === 'INSERT') {
+            const incoming = mapSupabaseRowToHazard(payload.new);
+            setHazards((prev) => [incoming, ...prev.filter((h) => h.id !== incoming.id)]);
+            setLiveIncomingAlert(incoming);
+            setSelectedHazard(incoming);
+            playChimeAlert();
+            setTimeout(() => {
+              if (isMounted) setLiveIncomingAlert(null);
+            }, 8000);
+          } else if (payload.eventType === 'UPDATE') {
+            const updated = mapSupabaseRowToHazard(payload.new);
+            setHazards((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
+          } else if (payload.eventType === 'DELETE') {
+            const deletedId = (payload.old as any)?.id;
+            if (deletedId) {
+              setHazards((prev) => prev.filter((h) => h.id !== deletedId));
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[SUPABASE REALTIME STATUS]', status);
+      });
+
+    // C. Resilient API polling fallback (every 3 seconds) for local/AWS backend
     const syncHazards = async () => {
       try {
         const res = await fetch(`/api/hazards?_t=${Date.now()}`, {
@@ -83,11 +173,15 @@ export default function Home() {
           headers: { Pragma: 'no-cache' }
         });
         if (res.ok) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.hazards) && isMounted) {
+          const text = await res.text();
+          let data: any = null;
+          try {
+            data = JSON.parse(text);
+          } catch (_) {}
+
+          if (data && data.success && Array.isArray(data.hazards) && isMounted) {
             setHazards((prev) => {
               if (hasInitializedRef.current) {
-                // Detect newly arrived hazard from any other mobile or desktop device
                 const prevIds = new Set(prev.map((h) => h.id));
                 const newlyArrived = data.hazards.find((h: HazardReport) => !prevIds.has(h.id));
 
@@ -112,12 +206,12 @@ export default function Home() {
     // Initial fetch immediately
     syncHazards();
 
-    // 2-second snappy live sync interval across all phones & laptops
-    const interval = setInterval(syncHazards, 2000);
+    const interval = setInterval(syncHazards, 3000);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -138,6 +232,29 @@ export default function Home() {
     setSelectedHazard(newReport);
     setMobileTab('map');
 
+    // 1. Broadcast directly to Supabase Realtime Cloud Database
+    try {
+      await supabase.from('hazards').upsert({
+        id: newReport.id,
+        title: newReport.title,
+        type: newReport.type,
+        severity: newReport.severity,
+        urgency: newReport.urgency,
+        status: newReport.status,
+        location: newReport.location,
+        image_url: newReport.imageUrl,
+        reported_at: newReport.reportedAt,
+        citizen_name: newReport.citizenName,
+        citizen_email: newReport.citizenEmail,
+        upvotes: newReport.upvotes,
+        ai_analysis: newReport.aiAnalysis,
+        work_order: newReport.workOrder
+      });
+    } catch (err) {
+      console.warn('Supabase upsert notice:', err);
+    }
+
+    // 2. Also notify local/server API if available
     try {
       const res = await fetch('/api/hazards', {
         method: 'POST',
@@ -145,13 +262,16 @@ export default function Home() {
         body: JSON.stringify({ hazard: newReport })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.hazards)) {
-          setHazards(data.hazards);
-          try {
-            localStorage.setItem('infrapulse_hazards_store', JSON.stringify(data.hazards));
-          } catch (_) {}
-        }
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && data.success && Array.isArray(data.hazards)) {
+            setHazards(data.hazards);
+            try {
+              localStorage.setItem('infrapulse_hazards_store', JSON.stringify(data.hazards));
+            } catch (_) {}
+          }
+        } catch (_) {}
       }
     } catch (e) {
       console.warn('Operating in offline/static mode:', e);
@@ -166,6 +286,28 @@ export default function Home() {
     } catch (_) {}
     setSelectedHazard(updated);
 
+    // 1. Update in Supabase Realtime Cloud Database
+    try {
+      await supabase
+        .from('hazards')
+        .update({
+          title: updated.title,
+          type: updated.type,
+          severity: updated.severity,
+          urgency: updated.urgency,
+          status: updated.status,
+          location: updated.location,
+          image_url: updated.imageUrl,
+          upvotes: updated.upvotes,
+          ai_analysis: updated.aiAnalysis,
+          work_order: updated.workOrder
+        })
+        .eq('id', updated.id);
+    } catch (err) {
+      console.warn('Supabase update notice:', err);
+    }
+
+    // 2. Also notify local/server API if available
     try {
       const res = await fetch('/api/hazards', {
         method: 'PUT',
@@ -173,13 +315,16 @@ export default function Home() {
         body: JSON.stringify({ hazard: updated })
       });
       if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.hazards)) {
-          setHazards(data.hazards);
-          try {
-            localStorage.setItem('infrapulse_hazards_store', JSON.stringify(data.hazards));
-          } catch (_) {}
-        }
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && data.success && Array.isArray(data.hazards)) {
+            setHazards(data.hazards);
+            try {
+              localStorage.setItem('infrapulse_hazards_store', JSON.stringify(data.hazards));
+            } catch (_) {}
+          }
+        } catch (_) {}
       }
     } catch (e) {
       console.warn('Operating in offline/static mode:', e);
@@ -194,16 +339,13 @@ export default function Home() {
       } catch (_) {}
       setSelectedHazard(null);
       setInspectingHazard(null);
+
       try {
-        const res = await fetch('/api/hazards?all=true', {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.hazards)) {
-            setHazards(data.hazards);
-          }
-        }
+        await supabase.from('hazards').delete().neq('id', '');
+      } catch (_) {}
+
+      try {
+        await fetch('/api/hazards?all=true', { method: 'DELETE' });
       } catch (e) {
         console.warn('Cleared hazards locally.');
       }
@@ -223,15 +365,13 @@ export default function Home() {
     }
 
     try {
-      const res = await fetch(`/api/hazards?id=${encodeURIComponent(hazardId)}`, {
+      await supabase.from('hazards').delete().eq('id', hazardId);
+    } catch (_) {}
+
+    try {
+      await fetch(`/api/hazards?id=${encodeURIComponent(hazardId)}`, {
         method: 'DELETE'
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && Array.isArray(data.hazards)) {
-          setHazards(data.hazards);
-        }
-      }
     } catch (e) {
       console.warn('Deleted hazard locally.');
     }

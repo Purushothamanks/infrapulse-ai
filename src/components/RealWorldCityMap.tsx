@@ -92,6 +92,12 @@ export const RealWorldCityMap: React.FC<RealWorldCityMapProps> = ({
       });
 
       renderMarkers(L, map);
+
+      setTimeout(() => {
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.invalidateSize();
+        }
+      }, 250);
     }
 
     initMap();

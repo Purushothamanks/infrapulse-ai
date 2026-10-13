@@ -66,14 +66,19 @@ export const HazardInspectorModal: React.FC<HazardInspectorModalProps> = ({
         })
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setStatusEmailNotice(
-          prog === 'Completed'
-            ? `Automated completion email & official PDF certificate sent to ${targetEmail}`
-            : `Automated email notification sent to ${targetEmail} (${prog})`
-        );
-        setTimeout(() => setStatusEmailNotice(null), 8000);
+      if (res.ok) {
+        const text = await res.text();
+        try {
+          const data = JSON.parse(text);
+          if (data && data.success) {
+            setStatusEmailNotice(
+              prog === 'Completed'
+                ? `Automated completion email & official PDF certificate sent to ${targetEmail}`
+                : `Automated email notification sent to ${targetEmail} (${prog})`
+            );
+            setTimeout(() => setStatusEmailNotice(null), 8000);
+          }
+        } catch (_) {}
       }
     } catch (err) {
       console.error('Failed to dispatch grievance status email:', err);
