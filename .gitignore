@@ -44,3 +44,8 @@ next-env.d.ts
 data/*.json
 !data/.gitkeep
 
+# firebase
+.firebase/
+firebase-debug.log*
+
+

@@ -2,8 +2,8 @@
 
 **Project:** InfraPulse AI — Autonomous Urban Infrastructure Triage & Sustainable Civic Action Copilot  
 **Theme:** Urban Infrastructure & Sustainability (AI Tools Usage)  
-**Live Desktop URL:** [http://localhost:3000](http://localhost:3000)  
-**Live Mobile Public HTTPS URL (Any phone/network):** [https://high-tion-best-futures.trycloudflare.com](https://high-tion-best-futures.trycloudflare.com)  
+**Live Production URL (Firebase Hosting):** [https://mygovthub.web.app](https://mygovthub.web.app) / [https://mygovthub.firebaseapp.com](https://mygovthub.firebaseapp.com)  
+**Local Development URL:** [http://localhost:3000](http://localhost:3000)  
 **Local Wi-Fi Mobile URL:** `http://10.121.226.91:3000`  
 
 ---

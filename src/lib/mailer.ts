@@ -659,7 +659,7 @@ export async function sendNewHazardAdminAlertEmail({
     const bodyParagraphs = [
       `The Autonomous Vision AI Triage Engine has detected, cross-verified, and registered a priority urban infrastructure hazard docketed as <strong>${hazard.id}</strong>. The incident has met dual-pillar verification criteria and necessitates immediate contractor assignment.`,
       `Technical incident metrics and cost predictions are summarized below: ${incidentTable}`,
-      `The designated Municipal Administration Authority is requested to access the Command Center at <a href="https://3.6.172.250.nip.io" style="color: #0284c7; font-weight: 700; text-decoration: underline;">https://3.6.172.250.nip.io</a> to approve the automated work order and issue contractor dispatch instructions.`,
+      `The designated Municipal Administration Authority is requested to access the Command Center at <a href="https://mygovthub.web.app" style="color: #0284c7; font-weight: 700; text-decoration: underline;">https://mygovthub.web.app</a> to approve the automated work order and issue contractor dispatch instructions.`,
       `This issues under the Autonomous Incident Response Framework of the Government of Tamil Nadu.`
     ];
 
@@ -686,7 +686,7 @@ export async function sendNewHazardAdminAlertEmail({
       },
       to: ADMIN_ALERT_EMAIL,
       subject: `[OFFICIAL MEMORANDUM] No. ${omNumber}: Priority Incident Alert - ${hazard.title}`,
-      text: `GOVERNMENT OF TAMIL NADU - OFFICIAL MEMORANDUM (No. ${omNumber})\n\nSub: Priority Incident Alert & Dispatch Directive.\nIncident ID: ${hazard.id}\nTitle: ${hazard.title}\nLocation: ${hazard.location.address} (${hazard.location.ward})\nAi Prediction Budget: ₹${estimatedCost.toLocaleString('en-IN')}\n\nReview at https://3.6.172.250.nip.io`,
+      text: `GOVERNMENT OF TAMIL NADU - OFFICIAL MEMORANDUM (No. ${omNumber})\n\nSub: Priority Incident Alert & Dispatch Directive.\nIncident ID: ${hazard.id}\nTitle: ${hazard.title}\nLocation: ${hazard.location.address} (${hazard.location.ward})\nAi Prediction Budget: ₹${estimatedCost.toLocaleString('en-IN')}\n\nReview at https://mygovthub.web.app`,
       html
     });
 

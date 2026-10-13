@@ -38,7 +38,7 @@ export const OfficialWorkOrderPdfModal: React.FC<OfficialWorkOrderPdfModalProps>
 
   useEffect(() => {
     if (!hazard || !workOrder) return;
-    const verificationText = `https://3.6.172.250.nip.io/work-order?id=${workOrder.orderId}&hazard=${hazard.id}`;
+    const verificationText = `https://mygovthub.web.app/work-order?id=${workOrder.orderId}&hazard=${hazard.id}`;
     QRCode.toDataURL(verificationText, { width: 160, margin: 1 })
       .then(setQrCodeUrl)
       .catch(console.error);
@@ -269,7 +269,7 @@ Authorized Officer: Municipal Admin (ID: TN-SAMPLE-2026)`;
               <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono space-y-0.5">
                 <div className="font-bold text-slate-800 dark:text-slate-200">DIGITALLY SECURED DOCKET</div>
                 <div>Scan QR to track live SLA fulfillment</div>
-                <div>Server: 3.6.172.250.nip.io</div>
+                <div>Server: mygovthub.web.app</div>
               </div>
             </div>
 

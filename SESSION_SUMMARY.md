@@ -1,20 +1,20 @@
 # MyGovt AI Hub / InfraPulse AI - Hackathon Development Session Notes
 
-> **Last Updated:** September 27, 2026, 15:25 IST  
-> **Status:** Live & Production Ready • AWS EC2 Synchronized  
-> **Live Production Server:** [https://3.6.172.250.nip.io](https://3.6.172.250.nip.io)  
+> **Last Updated:** October 12, 2026  
+> **Status:** Live & Production Ready • Firebase Hosting Synchronized  
+> **Live Production Server:** [https://mygovthub.web.app](https://mygovthub.web.app) / [https://mygovthub.firebaseapp.com](https://mygovthub.firebaseapp.com)  
+> **Firebase Project:** `mygovthub` (Owner: `purushothamanks1711@gmail.com`)  
 > **GitHub Repository:** [https://github.com/Purushothamanks/infrapulse-ai](https://github.com/Purushothamanks/infrapulse-ai) (Branch: `main`)
 
 ---
 
 ## 1. System Architecture & Environment
 
-- **Server IP:** `3.6.172.250` (AWS EC2 Ubuntu 24.04 LTS)
-- **Domain:** `3.6.172.250.nip.io`
-- **Reverse Proxy:** Nginx with Let's Encrypt SSL certificate (`/etc/letsencrypt/live/3.6.172.250.nip.io/`)
-- **Process Manager:** PM2 running Next.js 16 on port 3000 (`pm2 restart 0 --update-env`)
-- **SSH Access:** `ssh 3.6.172.250` (Configured in `~/.ssh/config` using `/home/purushothaman/Videos/Projects/LAF-Rebuild/Final-Pro-Key.pem`)
-- **Brand Assets:** Clean `/logo.png` (replaces deprecated vercel.svg)
+- **Hosting Platform:** Firebase Hosting (`mygovthub.web.app`)
+- **Google / Firebase Account:** `purushothamanks1711@gmail.com`
+- **Framework:** Next.js 16 App Router (Turbopack)
+- **Deployment Pipeline:** Static Export CDN + Client-Side Incident Synchronization
+- **Brand Assets:** Clean `/logo.png`
 
 ---
 

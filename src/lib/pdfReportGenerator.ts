@@ -174,7 +174,7 @@ export function generateCompletionReportPdf(params: CompletionReportPdfParams): 
       doc.font('Helvetica-Bold').fontSize(8).fillColor(slateColor).text('DIGITAL VERIFICATION AUDIT', 50, sealY + 18);
       doc.font('Helvetica').fontSize(7.5).fillColor(darkColor);
       doc.text(`Official Issuer: Municipal Administration`, 50, sealY + 30);
-      doc.text(`Portal: https://3.6.172.250.nip.io`, 50, sealY + 42);
+      doc.text(`Portal: https://mygovthub.web.app`, 50, sealY + 42);
       doc.text(`Security Hash: SHA-256 Verified`, 50, sealY + 54);
       doc.text(`Official Channel: mygovtaihub@gmail.com`, 50, sealY + 66);
 

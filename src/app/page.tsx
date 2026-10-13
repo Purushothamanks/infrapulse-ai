@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { HazardReport } from '@/types/hazard';
+import { initialHazards } from '@/data/mockHazards';
 import { Navbar } from '@/components/Navbar';
 import { RealWorldCityMap } from '@/components/RealWorldCityMap';
 import { HazardQueue } from '@/components/HazardQueue';
@@ -41,7 +42,18 @@ function playChimeAlert() {
 export default function Home() {
   const { user, isLoading } = useAuth();
 
-  const [hazards, setHazards] = useState<HazardReport[]>([]);
+  const [hazards, setHazards] = useState<HazardReport[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('infrapulse_hazards_store');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (_) {}
+    }
+    return initialHazards;
+  });
   const [selectedHazard, setSelectedHazard] = useState<HazardReport | null>(null);
   const [inspectingHazard, setInspectingHazard] = useState<HazardReport | null>(null);
   const [activeFilter, setActiveFilter] = useState<string>('ALL');
@@ -51,7 +63,7 @@ export default function Home() {
   const [liveIncomingAlert, setLiveIncomingAlert] = useState<HazardReport | null>(null);
   const hasInitializedRef = useRef<boolean>(false);
 
-  const [publicUrl, setPublicUrl] = useState<string>('https://3.6.172.250.nip.io');
+  const [publicUrl, setPublicUrl] = useState<string>('https://mygovthub.web.app');
   const localWifiUrl = 'http://10.121.226.91:3000';
 
   useEffect(() => {
@@ -120,6 +132,9 @@ export default function Home() {
     // Optimistic local update
     const updated = [newReport, ...hazards.filter((h) => h.id !== newReport.id)];
     setHazards(updated);
+    try {
+      localStorage.setItem('infrapulse_hazards_store', JSON.stringify(updated));
+    } catch (_) {}
     setSelectedHazard(newReport);
     setMobileTab('map');
 
@@ -133,16 +148,22 @@ export default function Home() {
         const data = await res.json();
         if (data.success && Array.isArray(data.hazards)) {
           setHazards(data.hazards);
+          try {
+            localStorage.setItem('infrapulse_hazards_store', JSON.stringify(data.hazards));
+          } catch (_) {}
         }
       }
     } catch (e) {
-      console.error('Failed to sync new hazard to server:', e);
+      console.warn('Operating in offline/static mode:', e);
     }
   };
 
   const handleUpdateHazard = async (updated: HazardReport) => {
     const next = hazards.map((h) => (h.id === updated.id ? updated : h));
     setHazards(next);
+    try {
+      localStorage.setItem('infrapulse_hazards_store', JSON.stringify(next));
+    } catch (_) {}
     setSelectedHazard(updated);
 
     try {
@@ -155,16 +176,22 @@ export default function Home() {
         const data = await res.json();
         if (data.success && Array.isArray(data.hazards)) {
           setHazards(data.hazards);
+          try {
+            localStorage.setItem('infrapulse_hazards_store', JSON.stringify(data.hazards));
+          } catch (_) {}
         }
       }
     } catch (e) {
-      console.error('Failed to sync hazard update to server:', e);
+      console.warn('Operating in offline/static mode:', e);
     }
   };
 
   const handleDeleteHazard = async (hazardId: string) => {
     if (hazardId === 'all') {
       setHazards([]);
+      try {
+        localStorage.setItem('infrapulse_hazards_store', JSON.stringify([]));
+      } catch (_) {}
       setSelectedHazard(null);
       setInspectingHazard(null);
       try {
@@ -178,13 +205,16 @@ export default function Home() {
           }
         }
       } catch (e) {
-        console.error('Failed to clear all hazards on server:', e);
+        console.warn('Cleared hazards locally.');
       }
       return;
     }
 
     const next = hazards.filter((h) => h.id !== hazardId);
     setHazards(next);
+    try {
+      localStorage.setItem('infrapulse_hazards_store', JSON.stringify(next));
+    } catch (_) {}
     if (selectedHazard?.id === hazardId) {
       setSelectedHazard(null);
     }
@@ -203,7 +233,7 @@ export default function Home() {
         }
       }
     } catch (e) {
-      console.error('Failed to delete hazard on server:', e);
+      console.warn('Deleted hazard locally.');
     }
   };
 
