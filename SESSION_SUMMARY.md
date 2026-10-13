@@ -102,5 +102,32 @@ All emails sent and received follow the authentic **Government of Tamil Nadu Off
 - **Enhanced Subject Deliverability:** Updated the verification email subject line to `Your Verification Passcode: {OTP} - MyGovt AI Hub (Official Memorandum No. {OM})`, avoiding spam filter suppression.
 - **Neutral Administrative Signatory:** Updated all official correspondence signatory blocks, work order certificates, and PDF completion dockets to read **`Municipal Administration Authority`** / **`Municipal Admin`** instead of any individual's personal name.
 
+---
+
+## 5. Supabase Real-Time Universal Live Sync & Secure Email Dispatching
+
+### A. Universal Realtime Sync & Cross-Device Database
+- **Supabase Project:** `mpymsolehyodfyamnpqn` (`https://mpymsolehyodfyamnpqn.supabase.co`).
+- **Realtime WebSockets:** Native channel subscriptions on `public.hazards` and `public.mail_queue`.
+- **Cross-Device Telemetry:** Instantaneous multi-device live replication across mobile, tablet, and desktop without page reloads.
+
+### B. Zero Card Number / OTP Leaks in User Interface
+- **Eliminated Fallback Credential Printing:** Removed all mock strings (e.g. `TN-MUNI-8412-2026`, `123456`) from user-facing feedback messages in `src/context/AuthContext.tsx`.
+- **Strict Email Arrival:**
+  - Admin card generation now strictly responds with: `"Your Permanent Municipal Security Card Number has been generated and sent to {email}. Please check your email inbox and enter your card number to log in."`
+  - Citizen OTP generation strictly responds with: `"Verification code sent to {email}. Please check your Inbox and Spam/Junk folder."`
+  - No credential or verification code is ever displayed in UI text or auto-filled into form fields.
+
+### C. Supabase Auth & Mail Queue Architecture
+- **`public.admin_security_cards`:** Persists issued Permanent Municipal Security Cards per authorized admin.
+- **`public.otp_verifications`:** Persists active 6-digit verification passcodes with 10-minute expiry timestamps.
+- **`public.registered_users`:** Persists verified civilian citizens and municipal officials.
+- **`public.mail_queue`:** Realtime outgoing email queue with atomic status transitions (`pending` -> `processing` -> `sent` / `failed`).
+- **Background Mail Dispatcher (`scripts/mail-dispatcher.mjs`):**
+  - Listens via Supabase Realtime WebSocket and automated queue polling.
+  - Connects to Gmail SMTP (`smtp.gmail.com:465`) using authenticated credentials (`mygovtaihub@gmail.com`).
+  - Dispatches Official Memorandum (OM) cards, citizen OTP passcodes, and grievance status completion certificates in real time.
+
+
 
 

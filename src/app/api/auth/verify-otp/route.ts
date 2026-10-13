@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyOtpRecord } from '@/lib/otpStore';
 import { registerUser } from '@/lib/userStore';
 import { User } from '@/types/auth';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: Request) {
   try {
@@ -53,6 +54,23 @@ export async function POST(request: Request) {
         verified: true
       });
     }
+
+    // Sync with Supabase registered_users
+    try {
+      await supabase.from('registered_users').upsert([
+        {
+          email: cleanEmail,
+          id: user.id,
+          name: user.name,
+          role: user.role,
+          official_id: user.officialId,
+          card_number: user.cardNumber,
+          verified: true,
+          department: user.department
+        }
+      ]);
+      await supabase.from('otp_verifications').delete().eq('email', cleanEmail);
+    } catch (_) {}
 
     return NextResponse.json({
       success: true,

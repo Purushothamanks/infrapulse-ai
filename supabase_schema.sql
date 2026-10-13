@@ -92,3 +92,75 @@ values
   null
 )
 on conflict (id) do nothing;
+
+-- ============================================================
+-- 5. Create Auth and Mail Queue Tables
+-- ============================================================
+
+-- Admin Permanent Municipal Security Cards
+create table if not exists public.admin_security_cards (
+  email text primary key,
+  card_number text not null,
+  name text not null default 'Municipal Admin',
+  department text not null default 'Tamil Nadu Municipal Administration & Urban Water Supply',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- OTP Verifications
+create table if not exists public.otp_verifications (
+  email text primary key,
+  code text not null,
+  role text not null default 'citizen',
+  name text,
+  official_id text,
+  expires_at bigint not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Registered Citizens and Users
+create table if not exists public.registered_users (
+  email text primary key,
+  id text not null,
+  name text not null,
+  role text not null,
+  official_id text,
+  card_number text,
+  verified boolean not null default true,
+  department text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Outgoing Email Dispatch Queue
+create table if not exists public.mail_queue (
+  id uuid primary key default gen_random_uuid(),
+  to_email text not null,
+  subject text not null,
+  html text not null,
+  text text,
+  status text not null default 'pending',
+  error text,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  sent_at timestamp with time zone
+);
+
+-- Realtime Publication for Mail Queue
+alter publication supabase_realtime add table public.mail_queue;
+
+-- Row Level Security (RLS) Policies
+alter table public.admin_security_cards enable row level security;
+alter table public.otp_verifications enable row level security;
+alter table public.registered_users enable row level security;
+alter table public.mail_queue enable row level security;
+
+drop policy if exists "Allow public all admin_security_cards" on public.admin_security_cards;
+create policy "Allow public all admin_security_cards" on public.admin_security_cards for all using (true) with check (true);
+
+drop policy if exists "Allow public all otp_verifications" on public.otp_verifications;
+create policy "Allow public all otp_verifications" on public.otp_verifications for all using (true) with check (true);
+
+drop policy if exists "Allow public all registered_users" on public.registered_users;
+create policy "Allow public all registered_users" on public.registered_users for all using (true) with check (true);
+
+drop policy if exists "Allow public all mail_queue" on public.mail_queue;
+create policy "Allow public all mail_queue" on public.mail_queue for all using (true) with check (true);
+

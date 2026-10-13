@@ -7,6 +7,7 @@
     "build": "next build",
     "build:static": "node scripts/build-static.mjs",
     "deploy:firebase": "npm run build:static && firebase deploy --only hosting",
+    "mailer:worker": "node scripts/mail-dispatcher.mjs",
     "start": "next start",
     "lint": "eslint"
   },

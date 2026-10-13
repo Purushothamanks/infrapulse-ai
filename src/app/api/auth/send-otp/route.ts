@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { saveOtpRecord } from '@/lib/otpStore';
 import { sendOtpEmail } from '@/lib/mailer';
+import { supabase } from '@/lib/supabase';
 
 const AUTHORIZED_ADMIN_EMAILS = ['mygovtaihub@gmail.com'];
 const AUTHORIZED_GOVT_ID = 'TN-SAMPLE-2026';
@@ -43,6 +44,20 @@ export async function POST(request: Request) {
       assignedName,
       assignedGovtId
     );
+
+    // Sync with Supabase
+    try {
+      await supabase.from('otp_verifications').upsert([
+        {
+          email: cleanEmail,
+          code,
+          role: cleanRole,
+          name: assignedName,
+          official_id: assignedGovtId,
+          expires_at: expiresAt
+        }
+      ]);
+    } catch (_) {}
 
     // 3. Dispatch real email via nodemailer / SMTP
     const mailResult = await sendOtpEmail({

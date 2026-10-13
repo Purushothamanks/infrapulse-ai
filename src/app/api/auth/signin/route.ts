@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getRegisteredUser, issueAdminCardNumber, verifyAdminCardNumber } from '@/lib/userStore';
 import { sendAdminSecurityCardEmail } from '@/lib/mailer';
+import { supabase } from '@/lib/supabase';
 
 const AUTHORIZED_ADMIN_EMAILS = ['mygovtaihub@gmail.com'];
 const isAuthorizedAdmin = (e: string) => AUTHORIZED_ADMIN_EMAILS.includes((e || '').trim().toLowerCase());
@@ -35,6 +36,18 @@ export async function POST(request: Request) {
       // 1A. Admin requests 1st-time Card issuance or resending card
       if (action === 'issue_card') {
         const { cardNumber: issuedCard, isNew, user } = issueAdminCardNumber(cleanEmail, 'Municipal Admin');
+
+        // Sync with Supabase
+        try {
+          await supabase.from('admin_security_cards').upsert([
+            {
+              email: cleanEmail,
+              card_number: issuedCard,
+              name: user.name,
+              department: user.department
+            }
+          ]);
+        } catch (_) {}
 
         // Dispatch official security card email
         await sendAdminSecurityCardEmail({
