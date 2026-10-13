@@ -17,12 +17,7 @@ import { supabase } from '@/lib/supabase';
 import {
   Radio,
   Loader2,
-  Filter,
-  Map,
-  ListFilter,
-  ShieldCheck,
-  AlertTriangle,
-  Activity
+  Filter
 } from 'lucide-react';
 
 function mapSupabaseRowToHazard(row: any): HazardReport {
@@ -461,44 +456,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Mobile View Switcher Tabs (Sticky Top on Mobile) */}
-        <div className="lg:hidden sticky top-[51px] z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md pt-1 pb-2 border-b border-slate-200 dark:border-slate-800/80 -mx-3 px-3 shadow-xs">
-          <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold shadow-inner">
-            <button
-              type="button"
-              onClick={() => setMobileTab('map')}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all cursor-pointer ${
-                mobileTab === 'map'
-                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <Map className="w-4 h-4" />
-              <span>Tactical GIS Map</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileTab('queue')}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all cursor-pointer relative ${
-                mobileTab === 'queue'
-                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20 font-bold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <ListFilter className="w-4 h-4" />
-              <span>Incident Queue</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${
-                  mobileTab === 'queue'
-                    ? 'bg-slate-950/30 text-slate-950'
-                    : 'bg-emerald-500 text-slate-950'
-                }`}
-              >
-                {filteredHazards.length}
-              </span>
-            </button>
-          </div>
-        </div>
 
         {/* Clean Filter Chips Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none text-xs -mx-1 px-1 sm:mx-0 sm:px-0">
