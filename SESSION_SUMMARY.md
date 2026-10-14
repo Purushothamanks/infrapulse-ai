@@ -128,6 +128,49 @@ All emails sent and received follow the authentic **Government of Tamil Nadu Off
   - Connects to Gmail SMTP (`smtp.gmail.com:465`) using authenticated credentials (`mygovtaihub@gmail.com`).
   - Dispatches Official Memorandum (OM) cards, citizen OTP passcodes, and grievance status completion certificates in real time.
 
+---
 
+## 6. Search Engine Optimization (SEO) & Google Search Console Indexing
 
+### A. Core Deployment & Domain Metadata
+- **Primary Domain:** `https://mygovthub.web.app`
+- **Secondary Domain:** `https://mygovthub.firebaseapp.com`
+- **Target Search Keywords:**
+  - `my govt hub`, `MyGovt Hub`, `mygovthub`
+  - `govt portal`, `government portal`
+  - `civic portal`, `citizen portal`, `citizen civic portal`
+  - `infrapulse ai`, `infrapulse`
+  - `municipal grievance portal`, `civic issue reporting`, `pothole complaint portal`
+  - `urban infrastructure triage`, `smart city municipal portal`, `SDG 11 sustainable cities`
 
+### B. Google Search Console Ownership Verification
+- **Method:** HTML Verification Meta Tag
+- **Verification Code:** `CrjeWc-ZPV1jt8rxQXVI04Xa3-LuSkpQOH9KhUgy1DY`
+- **HTML Meta Tag:**
+  ```html
+  <meta name="google-site-verification" content="CrjeWc-ZPV1jt8rxQXVI04Xa3-LuSkpQOH9KhUgy1DY" />
+  ```
+- **DNS TXT Record (Alternative):** `google-site-verification=L8WiuCCuGd2buAByiLIlS9cOdpgwWfxQk2cxZzn2-4U`
+- **Integrated Files:** Embedded natively in `src/app/layout.tsx` (Next.js `metadata.verification.google` and explicit `<head>` tag).
+
+### C. Search Engine Assets & Schema Markup
+1. **Robots Exclusion Standard (`public/robots.txt`):**
+   - Configured `User-agent: *` with `Allow: /`.
+   - Links to canonical sitemaps on both `mygovthub.web.app` and `mygovthub.firebaseapp.com`.
+2. **XML Sitemap (`public/sitemap.xml`):**
+   - Declares root URL with priority `1.0` and daily `changefreq`.
+3. **Web Application Manifest (`public/manifest.json`):**
+   - Defines PWA identity, theme colors (`#10b981`), and launcher shortcuts for mobile browser search signals.
+4. **Structured Schema & Crawler Landmarks (`src/app/layout.tsx`):**
+   - **Schema.org (JSON-LD):** Configures `@type: WebApplication` and `@type: GovernmentService`.
+   - **Social Meta Tags:** OpenGraph and Twitter card summary banner configurations.
+   - **Semantic Crawl Landmarks:** Screen-reader accessible landmark tags for instant crawler indexing without waiting for client-side JavaScript execution.
+
+### D. Build & Deploy Commands
+```bash
+# 1. Compile static production export
+npm run build:static
+
+# 2. Deploy directly to Firebase Hosting
+firebase deploy --only hosting
+```

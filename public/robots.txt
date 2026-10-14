@@ -1,0 +1,7 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://mygovthub.web.app/sitemap.xml
+Sitemap: https://mygovthub.firebaseapp.com/sitemap.xml
